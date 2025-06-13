@@ -1,0 +1,85 @@
+<!-- Sidebar - narrower width -->
+<div class="col-md-2 col-lg-1 bg-light p-2 d-flex flex-column">
+    <!-- User Profile - more compact -->
+    <div class="d-flex align-items-center mb-3">
+        <div class="rounded-circle bg-secondary mx-auto" style="width: 35px; height: 35px;"></div>
+    </div>
+    <h6 class="text-center small mb-3">
+        <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Guest'; ?>
+    </h6>
+    
+    <!-- Navigation Menu - icons only for smaller screens -->
+    <nav class="nav flex-column text-center">
+        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'home.php' ? 'active' : ''; ?> d-flex flex-column align-items-center py-2" href="home.php">
+            <i class="bi bi-grid"></i>
+            <span class="small d-none d-lg-inline">Dashboard</span>
+        </a>
+        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'projects.php' ? 'active' : ''; ?> d-flex flex-column align-items-center py-2" href="projects.php">
+            <i class="bi bi-folder"></i>
+            <span class="small d-none d-lg-inline">Projects</span>
+        </a>
+        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'tasks.php' ? 'active' : ''; ?> d-flex flex-column align-items-center py-2" href="tasks.php">
+            <i class="bi bi-list-check"></i>
+            <span class="small d-none d-lg-inline">Tasks</span>
+        </a>
+        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'calendar.php' ? 'active' : ''; ?> d-flex flex-column align-items-center py-2" href="calendar.php">
+            <i class="bi bi-calendar-week"></i>
+            <span class="small d-none d-lg-inline">Calendar</span>
+        </a>
+        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?> d-flex flex-column align-items-center py-2" href="reports.php">
+            <i class="bi bi-bar-chart"></i>
+            <span class="small d-none d-lg-inline">Reports</span>
+        </a>
+    </nav>
+    
+    <!-- Bottom Actions -->
+    <div class="mt-auto text-center">
+        <button class="btn btn-primary btn-sm w-75 mb-2" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+            <i class="bi bi-plus-circle"></i>
+        </button>
+        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'settings.php' ? 'active' : ''; ?> d-flex flex-column align-items-center py-2" href="settings.php">
+            <i class="bi bi-gear"></i>
+            <span class="small d-none d-lg-inline">Settings</span>
+        </a>
+        <a class="nav-link d-flex flex-column align-items-center py-2" href="logout.php">
+            <i class="bi bi-box-arrow-right"></i>
+            <span class="small d-none d-lg-inline">Logout</span>
+        </a>
+    </div>
+</div>
+
+<!-- New Project Modal -->
+<div class="modal fade" id="newProjectModal" tabindex="-1" aria-labelledby="newProjectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="create_project.php" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newProjectModalLabel">Create New Project</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="projectName" class="form-label">Project Name</label>
+                        <input type="text" class="form-control" id="projectName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="projectDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectStatus" class="form-label">Status</label>
+                        <select class="form-select" id="projectStatus" name="status">
+                            <option value="Planning">Planning</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
