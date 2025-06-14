@@ -1,0 +1,64 @@
+<?php
+session_start();
+require_once 'config/db_connect.php';
+
+// Redirect if not logged in
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+// Check if the form was submitted
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $project_id = $_POST['project_id'] ?? '';
+    $name = trim($_POST['name'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $status = $_POST['status'] ?? 'Planning';
+    
+    // Validate input
+    if (empty($project_id) || !is_numeric($project_id)) {
+        $_SESSION['error'] = "Invalid project ID";
+        header('Location: projects.php');
+        exit;
+    }
+    
+    if (empty($name)) {
+        $_SESSION['error'] = "Project name is required";
+        header("Location: project.php?id=$project_id");
+        exit;
+    }
+    
+    try {
+        // Verify project belongs to user
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM projects WHERE project_id = ? AND user_id = ?");
+        $stmt->execute([$project_id, $_SESSION['user_id']]);
+        
+        if ($stmt->fetchColumn() == 0) {
+            $_SESSION['error'] = "You don't have permission to update this project";
+            header('Location: projects.php');
+            exit;
+        }
+        
+        // Update project
+        $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ? WHERE project_id = ?");
+        $result = $stmt->execute([$name, $description, $status, $project_id]);
+        
+        if ($result) {
+            $_SESSION['success'] = "Project updated successfully";
+        } else {
+            $_SESSION['error'] = "Failed to update project";
+        }
+        
+        header("Location: project.php?id=$project_id");
+        exit;
+        
+    } catch (PDOException $e) {
+        $_SESSION['error'] = "Database error: " . $e->getMessage();
+        header("Location: project.php?id=$project_id");
+        exit;
+    }
+} else {
+    // If not POST request, redirect to projects page
+    header('Location: projects.php');
+    exit;
+}
