@@ -62,7 +62,8 @@ try {
     }
     
     // Redirect back to project page
-    header("Location: project.php?id=$project_id");
+    $referrer = $_SERVER['HTTP_REFERER'] ?? 'tasks.php';
+    header('Location: ' . $referrer);
     exit;
     
 } catch (PDOException $e) {
