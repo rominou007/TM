@@ -41,12 +41,18 @@ $projects = $stmt->fetchAll();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tasks</title>
     <?php include 'links.php'; ?>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container-fluid">
-        <div class="row vh-100">
-            <!-- Include Navbar -->
+        <div class="row">
             <?php include 'navbar.html'; ?>
+            
             <!-- Main Content -->
             <div class="col-md-10 col-lg-11 p-4">
                 <!-- Messages -->
@@ -102,7 +108,7 @@ $projects = $stmt->fetchAll();
                                             ?>"><?php echo htmlspecialchars($task['status']); ?></span>
                                         </div>
                                         
-                                        <p class="card-text small text-muted">
+                                        <p class="card-text">
                                             <?php echo !empty($task['description']) ? 
                                                 nl2br(htmlspecialchars(substr($task['description'], 0, 100))) . 
                                                 (strlen($task['description']) > 100 ? '...' : '') : 
@@ -324,10 +330,21 @@ $projects = $stmt->fetchAll();
 
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- GSAP for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Task filter functionality
+        // Initialize GSAP animations
+        gsap.from('.task-card', {
+            duration: 0.5,
+            y: 20,
+            opacity: 0,
+            stagger: 0.1,
+            ease: 'power2.out'
+        });
+
+        // Task filter functionality with smooth transitions
         const filterButtons = document.querySelectorAll('[data-filter]');
         
         filterButtons.forEach(button => {
@@ -341,21 +358,33 @@ $projects = $stmt->fetchAll();
                 const filter = this.getAttribute('data-filter');
                 const tasks = document.querySelectorAll('.task-card');
                 
+                // Animate tasks with GSAP
                 tasks.forEach(task => {
                     if (filter === 'all' || task.getAttribute('data-status') === filter) {
-                        task.style.display = '';
+                        gsap.to(task, {
+                            duration: 0.3,
+                            opacity: 1,
+                            scale: 1,
+                            display: 'block',
+                            ease: 'power2.out'
+                        });
                     } else {
-                        task.style.display = 'none';
+                        gsap.to(task, {
+                            duration: 0.3,
+                            opacity: 0,
+                            scale: 0.95,
+                            display: 'none',
+                            ease: 'power2.in'
+                        });
                     }
                 });
             });
         });
         
-        // Edit Task Modal
+        // Enhanced Edit Task Modal
         const editTaskModal = document.getElementById('editTaskModal');
         if (editTaskModal) {
             editTaskModal.addEventListener('show.bs.modal', function(event) {
-                // Button that triggered the modal
                 const button = event.relatedTarget;
                 
                 // Extract task data from data attributes
@@ -366,39 +395,79 @@ $projects = $stmt->fetchAll();
                 const taskPriority = button.getAttribute('data-task-priority');
                 const taskDueDate = button.getAttribute('data-task-due-date');
                 
-                // Update the modal's content
-                const modalTaskId = editTaskModal.querySelector('#editTaskId');
-                const modalTaskTitle = editTaskModal.querySelector('#editTitle');
-                const modalTaskDescription = editTaskModal.querySelector('#editDescription');
-                const modalTaskStatus = editTaskModal.querySelector('#editStatus');
-                const modalTaskPriority = editTaskModal.querySelector('#editPriority');
-                const modalTaskDueDate = editTaskModal.querySelector('#editDueDate');
+                // Update the modal's content with animation
+                const modalElements = {
+                    taskId: editTaskModal.querySelector('#editTaskId'),
+                    title: editTaskModal.querySelector('#editTitle'),
+                    description: editTaskModal.querySelector('#editDescription'),
+                    status: editTaskModal.querySelector('#editStatus'),
+                    priority: editTaskModal.querySelector('#editPriority'),
+                    dueDate: editTaskModal.querySelector('#editDueDate')
+                };
                 
-                modalTaskId.value = taskId;
-                modalTaskTitle.value = taskTitle;
-                modalTaskDescription.value = taskDescription;
-                modalTaskStatus.value = taskStatus;
-                modalTaskPriority.value = taskPriority;
-                modalTaskDueDate.value = taskDueDate;
+                // Animate modal content
+                gsap.from(editTaskModal.querySelector('.modal-content'), {
+                    duration: 0.3,
+                    y: 20,
+                    opacity: 0,
+                    ease: 'power2.out'
+                });
+                
+                // Update values
+                modalElements.taskId.value = taskId;
+                modalElements.title.value = taskTitle;
+                modalElements.description.value = taskDescription;
+                modalElements.status.value = taskStatus;
+                modalElements.priority.value = taskPriority;
+                modalElements.dueDate.value = taskDueDate;
             });
         }
         
-        // Delete Task Modal
+        // Enhanced Delete Task Modal
         const deleteTaskModal = document.getElementById('deleteTaskModal');
         if (deleteTaskModal) {
             deleteTaskModal.addEventListener('show.bs.modal', function(event) {
-                // Button that triggered the modal
                 const button = event.relatedTarget;
                 
                 // Extract task data
                 const taskId = button.getAttribute('data-task-id');
                 const taskTitle = button.getAttribute('data-task-title');
                 
+                // Animate modal content
+                gsap.from(deleteTaskModal.querySelector('.modal-content'), {
+                    duration: 0.3,
+                    y: 20,
+                    opacity: 0,
+                    ease: 'power2.out'
+                });
+                
                 // Update the modal's content
                 document.getElementById('deleteTaskTitle').textContent = taskTitle;
                 document.getElementById('confirmDeleteBtn').href = 'delete_task.php?id=' + taskId;
             });
         }
+
+        // Add hover effects to cards
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                gsap.to(card, {
+                    duration: 0.3,
+                    y: -5,
+                    boxShadow: '0 8px 15px rgba(0, 0, 0, 0.2)',
+                    ease: 'power2.out'
+                });
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                gsap.to(card, {
+                    duration: 0.3,
+                    y: 0,
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    ease: 'power2.out'
+                });
+            });
+        });
     });
     </script>
 </body>

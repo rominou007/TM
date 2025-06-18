@@ -50,23 +50,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Prepare SQL based on whether due_date is provided
         if (!empty($due_date)) {
-            $stmt = $pdo->prepare("
-                UPDATE tasks 
-                SET title = ?, description = ?, status = ?, priority = ?, due_date = ?
-                WHERE task_id = ?
-            ");
-            $update_result = $stmt->execute([
-                $title, $description, $status, $priority, $due_date, $task_id
-            ]);
+            if ($setCompletedAt) {
+                $stmt = $pdo->prepare("
+                    UPDATE tasks 
+                    SET title = ?, description = ?, status = ?, priority = ?, due_date = ?, completed_at = NOW(), updated_at = CURRENT_TIMESTAMP
+                    WHERE task_id = ?
+                ");
+                $update_result = $stmt->execute([
+                    $title, $description, $status, $priority, $due_date, $task_id
+                ]);
+            } elseif ($clearCompletedAt) {
+                $stmt = $pdo->prepare("
+                    UPDATE tasks 
+                    SET title = ?, description = ?, status = ?, priority = ?, due_date = ?, completed_at = NULL, updated_at = CURRENT_TIMESTAMP
+                    WHERE task_id = ?
+                ");
+                $update_result = $stmt->execute([
+                    $title, $description, $status, $priority, $due_date, $task_id
+                ]);
+            } else {
+                $stmt = $pdo->prepare("
+                    UPDATE tasks 
+                    SET title = ?, description = ?, status = ?, priority = ?, due_date = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE task_id = ?
+                ");
+                $update_result = $stmt->execute([
+                    $title, $description, $status, $priority, $due_date, $task_id
+                ]);
+            }
         } else {
-            $stmt = $pdo->prepare("
-                UPDATE tasks 
-                SET title = ?, description = ?, status = ?, priority = ?, due_date = NULL
-                WHERE task_id = ?
-            ");
-            $update_result = $stmt->execute([
-                $title, $description, $status, $priority, $task_id
-            ]);
+            if ($setCompletedAt) {
+                $stmt = $pdo->prepare("
+                    UPDATE tasks 
+                    SET title = ?, description = ?, status = ?, priority = ?, due_date = NULL, completed_at = NOW(), updated_at = CURRENT_TIMESTAMP
+                    WHERE task_id = ?
+                ");
+                $update_result = $stmt->execute([
+                    $title, $description, $status, $priority, $task_id
+                ]);
+            } elseif ($clearCompletedAt) {
+                $stmt = $pdo->prepare("
+                    UPDATE tasks 
+                    SET title = ?, description = ?, status = ?, priority = ?, due_date = NULL, completed_at = NULL, updated_at = CURRENT_TIMESTAMP
+                    WHERE task_id = ?
+                ");
+                $update_result = $stmt->execute([
+                    $title, $description, $status, $priority, $task_id
+                ]);
+            } else {
+                $stmt = $pdo->prepare("
+                    UPDATE tasks 
+                    SET title = ?, description = ?, status = ?, priority = ?, due_date = NULL, updated_at = CURRENT_TIMESTAMP
+                    WHERE task_id = ?
+                ");
+                $update_result = $stmt->execute([
+                    $title, $description, $status, $priority, $task_id
+                ]);
+            }
         }
         
         if ($update_result) {

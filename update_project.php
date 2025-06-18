@@ -39,9 +39,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         
-        // Update project
-        $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ? WHERE project_id = ?");
-        $result = $stmt->execute([$name, $description, $status, $project_id]);
+        // Fetch current status and completed_at
+        $stmt = $pdo->prepare("SELECT status, completed_at FROM projects WHERE project_id = ?");
+        $stmt->execute([$project_id]);
+        $current = $stmt->fetch();
+        $setCompletedAt = false;
+        $clearCompletedAt = false;
+        if ($current) {
+            if ($status === 'Completed' && ($current['status'] !== 'Completed' || $current['completed_at'] === null)) {
+                $setCompletedAt = true;
+            } elseif ($current['status'] === 'Completed' && $status !== 'Completed') {
+                $clearCompletedAt = true;
+            }
+        }
+        
+        if ($setCompletedAt) {
+            $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ?, completed_at = NOW(), updated_at = CURRENT_TIMESTAMP WHERE project_id = ?");
+            $result = $stmt->execute([$name, $description, $status, $project_id]);
+        } elseif ($clearCompletedAt) {
+            $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ?, completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE project_id = ?");
+            $result = $stmt->execute([$name, $description, $status, $project_id]);
+        } else {
+            $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE project_id = ?");
+            $result = $stmt->execute([$name, $description, $status, $project_id]);
+        }
         
         if ($result) {
             $_SESSION['success'] = "Project updated successfully";

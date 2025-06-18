@@ -51,9 +51,29 @@ try {
     
     $project_id = $result['project_id'];
     
-    // Update task status
-    $stmt = $pdo->prepare("UPDATE tasks SET status = ? WHERE task_id = ?");
-    $update_result = $stmt->execute([$status, $task_id]);
+    // Fetch current status and completed_at
+    $stmt = $pdo->prepare("SELECT status, completed_at FROM tasks WHERE task_id = ?");
+    $stmt->execute([$task_id]);
+    $current = $stmt->fetch();
+    $setCompletedAt = false;
+    $clearCompletedAt = false;
+    if ($current) {
+        if ($status === 'Completed' && ($current['status'] !== 'Completed' || $current['completed_at'] === null)) {
+            $setCompletedAt = true;
+        } elseif ($current['status'] === 'Completed' && $status !== 'Completed') {
+            $clearCompletedAt = true;
+        }
+    }
+    if ($setCompletedAt) {
+        $stmt = $pdo->prepare("UPDATE tasks SET status = ?, completed_at = NOW(), updated_at = CURRENT_TIMESTAMP WHERE task_id = ?");
+        $update_result = $stmt->execute([$status, $task_id]);
+    } elseif ($clearCompletedAt) {
+        $stmt = $pdo->prepare("UPDATE tasks SET status = ?, completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE task_id = ?");
+        $update_result = $stmt->execute([$status, $task_id]);
+    } else {
+        $stmt = $pdo->prepare("UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE task_id = ?");
+        $update_result = $stmt->execute([$status, $task_id]);
+    }
     
     if ($update_result) {
         $_SESSION['success'] = "Task status updated to " . htmlspecialchars($status);

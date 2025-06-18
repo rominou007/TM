@@ -24,13 +24,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     try {
         // Insert the project
-        $stmt = $pdo->prepare("INSERT INTO projects (user_id, name, description, status) VALUES (?, ?, ?, ?)");
-        $result = $stmt->execute([
-            $_SESSION['user_id'],
-            $name,
-            $description,
-            $status
-        ]);
+        if ($status === 'Completed') {
+            $stmt = $pdo->prepare("INSERT INTO projects (user_id, name, description, status, completed_at) VALUES (?, ?, ?, ?, NOW())");
+            $result = $stmt->execute([
+                $_SESSION['user_id'],
+                $name,
+                $description,
+                $status
+            ]);
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO projects (user_id, name, description, status, completed_at) VALUES (?, ?, ?, ?, NULL)");
+            $result = $stmt->execute([
+                $_SESSION['user_id'],
+                $name,
+                $description,
+                $status
+            ]);
+        }
         
         if ($result) {
             $project_id = $pdo->lastInsertId();

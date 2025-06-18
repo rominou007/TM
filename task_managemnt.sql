@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS projects (
     description TEXT,
     status ENUM('Planning', 'In Progress', 'Completed') DEFAULT 'Planning',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
@@ -33,6 +35,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
     due_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
     FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );

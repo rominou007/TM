@@ -10,8 +10,8 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Get current month and year
-$month = isset($_GET['month']) ? intval($_GET['month']) : intval(date('m'));
-$year = isset($_GET['year']) ? intval($_GET['year']) : intval(date('Y'));
+$month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('m');
+$year = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
 
 // Validate month and year
 if ($month < 1 || $month > 12) {
@@ -22,44 +22,35 @@ if ($year < 2000 || $year > 2100) {
 }
 
 // Get first day of the month
-$first_day_timestamp = mktime(0, 0, 0, $month, 1, $year);
-$first_day_of_week = date('N', $first_day_timestamp); // 1 (Monday) to 7 (Sunday)
-$days_in_month = date('t', $first_day_timestamp);
+$firstDay = mktime(0, 0, 0, $month, 1, $year);
+$numberDays = date('t', $firstDay);
+$dateComponents = getdate($firstDay);
+$monthName = $dateComponents['month'];
+$dayOfWeek = $dateComponents['wday'];
 
-// Get previous and next month navigation
-$prev_month = $month - 1;
-$prev_year = $year;
-if ($prev_month < 1) {
-    $prev_month = 12;
-    $prev_year--;
-}
+// Get tasks for the month
+$startDate = date('Y-m-d', $firstDay);
+$endDate = date('Y-m-t', $firstDay);
 
-$next_month = $month + 1;
-$next_year = $year;
-if ($next_month > 12) {
-    $next_month = 1;
-    $next_year++;
-}
-
-// Get tasks for this month
-$start_date = "$year-$month-01";
-$end_date = date('Y-m-t', strtotime($start_date));
-
-$stmt = $pdo->prepare("
-    SELECT t.task_id, t.title, t.due_date, t.status, t.priority, p.name as project_name, p.project_id
+$stmt = $pdo->prepare('
+    SELECT t.*, p.name as project_name 
     FROM tasks t
     JOIN projects p ON t.project_id = p.project_id
-    WHERE t.user_id = ? AND t.due_date BETWEEN ? AND ?
+    WHERE t.user_id = ? 
+    AND t.due_date BETWEEN ? AND ?
     ORDER BY t.due_date ASC
-");
-$stmt->execute([$_SESSION['user_id'], $start_date, $end_date]);
+');
+$stmt->execute([$_SESSION['user_id'], $startDate, $endDate]);
 $tasks = $stmt->fetchAll();
 
 // Organize tasks by date
-$tasks_by_date = [];
+$tasksByDate = [];
 foreach ($tasks as $task) {
-    $day = date('j', strtotime($task['due_date']));
-    $tasks_by_date[$day][] = $task;
+    $date = date('j', strtotime($task['due_date']));
+    if (!isset($tasksByDate[$date])) {
+        $tasksByDate[$date] = [];
+    }
+    $tasksByDate[$date][] = $task;
 }
 ?>
 
@@ -68,164 +59,218 @@ foreach ($tasks as $task) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calendar - Task Management</title>
+    <title>Calendar - Task Manager</title>
     <?php include 'links.php'; ?>
-    <style>
-        .calendar-day {
-            min-height: 100px;
-            border: 1px solid #dee2e6;
-        }
-        .calendar-day:hover {
-            background-color: #f8f9fa;
-        }
-        .calendar-day.past {
-            background-color: #f8f9fa;
-        }
-        .calendar-day.today {
-            background-color: #e8f4f8;
-        }
-        .calendar-day .date {
-            font-weight: bold;
-            font-size: 1.2em;
-        }
-        .task-pill {
-            margin-bottom: 5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            cursor: pointer;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container-fluid">
-        <div class="row vh-100">
-            <!-- Include Navbar -->
+        <div class="row">
             <?php include 'navbar.html'; ?>
             
             <!-- Main Content -->
             <div class="col-md-10 col-lg-11 p-4">
-                <!-- Header with Month Navigation -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h1><?php echo date('F Y', $first_day_timestamp); ?></h1>
-                    <div>
-                        <a href="calendar.php?month=<?php echo $prev_month; ?>&year=<?php echo $prev_year; ?>" 
-                           class="btn btn-outline-primary me-2">
-                            <i class="bi bi-chevron-left"></i> Previous Month
-                        </a>
-                        <a href="calendar.php" class="btn btn-outline-secondary me-2">Today</a>
-                        <a href="calendar.php?month=<?php echo $next_month; ?>&year=<?php echo $next_year; ?>" 
-                           class="btn btn-outline-primary">
-                            Next Month <i class="bi bi-chevron-right"></i>
-                        </a>
+                <header class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1>Calendar</h1>
+                            <p class="text-muted">View and manage your tasks by date</p>
+                        </div>
+                        <div class="btn-group">
+                            <a href="?month=<?php echo $month-1; ?>&year=<?php echo $year; ?>" class="btn btn-secondary">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            <button class="btn btn-secondary" disabled>
+                                <?php echo $monthName . ' ' . $year; ?>
+                            </button>
+                            <a href="?month=<?php echo $month+1; ?>&year=<?php echo $year; ?>" class="btn btn-secondary">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </div>
                     </div>
-                </div>
+                </header>
                 
                 <!-- Calendar -->
-                <div class="card">
-                    <div class="card-body">
-                        <!-- Weekday headers -->
-                        <div class="row text-center fw-bold mb-2">
+                <div class="calendar">
+                    <!-- Calendar Header -->
+                    <div class="calendar-header p-3">
+                        <div class="row text-center">
+                            <div class="col">Sun</div>
                             <div class="col">Mon</div>
                             <div class="col">Tue</div>
                             <div class="col">Wed</div>
                             <div class="col">Thu</div>
                             <div class="col">Fri</div>
                             <div class="col">Sat</div>
-                            <div class="col">Sun</div>
                         </div>
-                        
-                        <!-- Calendar days -->
-                        <?php 
-                        $day_count = 1;
-                        $total_cells = ceil(($days_in_month + $first_day_of_week - 1) / 7) * 7;
-                        
-                        for ($i = 0; $i < $total_cells; $i++) {
-                            if ($i % 7 === 0) {
-                                echo '<div class="row">';
-                            }
-                            
-                            if ($i < $first_day_of_week - 1 || $day_count > $days_in_month) {
-                                // Empty cells
-                                echo '<div class="col p-2 calendar-day bg-light"></div>';
-                            } else {
-                                // Get CSS classes for the day
-                                $classes = 'col p-2 calendar-day';
-                                $current_date = "$year-$month-$day_count";
-                                if ($current_date == date('Y-m-d')) {
-                                    $classes .= ' today';
-                                } elseif ($current_date < date('Y-m-d')) {
-                                    $classes .= ' past';
-                                }
-                                
-                                echo '<div class="' . $classes . '">';
-                                echo '<div class="date mb-1">' . $day_count . '</div>';
-                                
-                                // Display tasks for this day
-                                if (isset($tasks_by_date[$day_count])) {
-                                    foreach ($tasks_by_date[$day_count] as $task) {
-                                        $status_class = ($task['status'] == 'Completed') ? 'success' : 
-                                            (($task['status'] == 'In Progress') ? 'warning' : 'info');
-                                        $priority_class = ($task['priority'] == 'High') ? 'text-danger' : 
-                                            (($task['priority'] == 'Medium') ? 'text-warning' : '');
-                                        
-                                        echo '<div class="task-pill bg-' . $status_class . ' bg-opacity-25 p-1 rounded" 
-                                                  data-bs-toggle="tooltip" data-bs-placement="top" 
-                                                  title="' . htmlspecialchars($task['title']) . ' (' . htmlspecialchars($task['project_name']) . ')"
-                                                  onclick="window.location = \'task.php?id=' . $task['task_id'] . '\'">';
-                                        echo '<small class="' . $priority_class . '">' . htmlspecialchars(substr($task['title'], 0, 20)) . 
-                                             (strlen($task['title']) > 20 ? '...' : '') . '</small>';
-                                        echo '</div>';
-                                    }
-                                }
-                                
-                                echo '</div>';
-                                $day_count++;
-                            }
-                            
-                            if (($i + 1) % 7 === 0) {
-                                echo '</div>';
-                            }
-                        }
-                        ?>
                     </div>
-                </div>
-                
-                <!-- Task Legend -->
-                <div class="mt-4">
-                    <h5>Legend</h5>
-                    <div class="d-flex flex-wrap gap-3">
-                        <div>
-                            <span class="badge bg-info">To Do</span>
-                        </div>
-                        <div>
-                            <span class="badge bg-warning">In Progress</span>
-                        </div>
-                        <div>
-                            <span class="badge bg-success">Completed</span>
-                        </div>
-                        <div>
-                            <span class="text-danger">●</span> High Priority
-                        </div>
-                        <div>
-                            <span class="text-warning">●</span> Medium Priority
-                        </div>
+                    
+                    <!-- Calendar Body -->
+                    <div class="calendar-body p-3">
+                        <?php
+                        $currentDay = 1;
+                        $currentDate = date('Y-m-d');
+                        
+                        // Create the calendar
+                        echo '<div class="row">';
+                        
+                        // Print initial empty cells
+                        for ($i = 0; $i < $dayOfWeek; $i++) {
+                            echo '<div class="col calendar-day p-2"></div>';
+                        }
+                        
+                        // Print the days of the month
+                        while ($currentDay <= $numberDays) {
+                            if ($dayOfWeek == 7) {
+                                $dayOfWeek = 0;
+                                echo '</div><div class="row">';
+                            }
+                            
+                            $currentDayDate = date('Y-m-d', mktime(0, 0, 0, $month, $currentDay, $year));
+                            $isToday = ($currentDayDate == $currentDate);
+                            
+                            echo '<div class="col calendar-day p-2 ' . ($isToday ? 'today' : '') . '">';
+                            echo '<div class="date-number">';
+                            if ($isToday) {
+                                echo '<span class="today-indicator d-inline-flex align-items-center justify-content-center me-1" style="background: var(--primary-color); color: #fff; border-radius: 50%; width: 2em; height: 2em; font-weight: 700; font-size: 1.1em;">' . $currentDay . '</span>';
+                                echo '<span class="fw-bold text-primary">Today</span>';
+                            } else {
+                                echo $currentDay;
+                            }
+                            echo '</div>';
+                            
+                            // Display tasks for this day
+                            if (isset($tasksByDate[$currentDay])) {
+                                echo '<div class="task-list">';
+                                foreach ($tasksByDate[$currentDay] as $task) {
+                                    $statusClass = ($task['status'] == 'Completed') ? 'success' : 
+                                        (($task['status'] == 'In Progress') ? 'warning' : 'info');
+                                    $priorityClass = ($task['priority'] == 'High') ? 'danger' : (($task['priority'] == 'Medium') ? 'warning' : 'secondary');
+                                    $taskId = (int)$task['task_id'];
+                                    $snapshot = htmlspecialchars(json_encode([
+                                        'title' => $task['title'],
+                                        'project' => $task['project_name'],
+                                        'status' => $task['status'],
+                                        'priority' => $task['priority'],
+                                        'due_date' => $task['due_date']
+                                    ]));
+                                    echo '<a href="task.php?id=' . $taskId . '" class="task-item bg-' . $statusClass . ' mb-1 text-decoration-none text-white position-relative" 
+                                        data-snapshot="' . $snapshot . '">' . htmlspecialchars($task['title']) . '</a>';
+                                }
+                                echo '</div>';
+                            }
+                            
+                            echo '</div>';
+                            
+                            $currentDay++;
+                            $dayOfWeek++;
+                        }
+                        
+                        // Complete the row
+                        while ($dayOfWeek < 7) {
+                            echo '<div class="col calendar-day p-2"></div>';
+                            $dayOfWeek++;
+                        }
+                        
+                        echo '</div>';
+                        ?>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Bootstrap 5 JS Bundle with Popper -->
+    
+    <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- GSAP for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
     <script>
-        // Initialize tooltips
-        document.addEventListener('DOMContentLoaded', function() {
-            var tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltips.map(function(tooltip) {
-                return new bootstrap.Tooltip(tooltip);
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate calendar on load
+        gsap.from('.calendar', {
+            duration: 0.5,
+            y: 20,
+            opacity: 0,
+            ease: 'power2.out'
+        });
+        
+        // Add hover effects to calendar days
+        const calendarDays = document.querySelectorAll('.calendar-day');
+        calendarDays.forEach(day => {
+            day.addEventListener('mouseenter', () => {
+                gsap.to(day, {
+                    duration: 0.2,
+                    backgroundColor: 'rgba(108, 99, 255, 0.1)',
+                    ease: 'power2.out'
+                });
+            });
+            
+            day.addEventListener('mouseleave', () => {
+                gsap.to(day, {
+                    duration: 0.2,
+                    backgroundColor: 'transparent',
+                    ease: 'power2.out'
+                });
             });
         });
+
+        // Snapshot Info Box
+        let infoBox = document.createElement('div');
+        infoBox.className = 'calendar-snapshot-box shadow-lg';
+        infoBox.style.position = 'fixed';
+        infoBox.style.zIndex = '9999';
+        infoBox.style.display = 'none';
+        infoBox.style.minWidth = '220px';
+        infoBox.style.maxWidth = '320px';
+        infoBox.style.background = 'var(--card-bg)';
+        infoBox.style.color = 'var(--text-primary)';
+        infoBox.style.borderRadius = '12px';
+        infoBox.style.padding = '1rem';
+        infoBox.style.boxShadow = '0 8px 24px rgba(0,0,0,0.25)';
+        infoBox.style.pointerEvents = 'none';
+        infoBox.style.transition = 'opacity 0.2s';
+        document.body.appendChild(infoBox);
+
+        function showInfoBox(e, data) {
+            infoBox.innerHTML = `
+                <div class="fw-bold mb-1"><i class="bi bi-clipboard me-2"></i>${data.title}</div>
+                <div class="mb-1"><i class="bi bi-folder me-2"></i><span class="text-secondary">${data.project}</span></div>
+                <div class="mb-1"><span class="badge bg-${data.status === 'Completed' ? 'success' : (data.status === 'In Progress' ? 'warning' : 'info')}">${data.status}</span>
+                    <span class="badge bg-${data.priority === 'High' ? 'danger' : (data.priority === 'Medium' ? 'warning' : 'secondary')}">${data.priority}</span></div>
+                <div><i class="bi bi-calendar-event me-2"></i>${data.due_date ? data.due_date : '<span class="text-muted">No due date</span>'}</div>
+            `;
+            infoBox.style.display = 'block';
+            infoBox.style.opacity = '1';
+            positionInfoBox(e);
+        }
+        function hideInfoBox() {
+            infoBox.style.display = 'none';
+            infoBox.style.opacity = '0';
+        }
+        function positionInfoBox(e) {
+            let x = e.clientX + 16;
+            let y = e.clientY + 16;
+            if (x + infoBox.offsetWidth > window.innerWidth) x = window.innerWidth - infoBox.offsetWidth - 8;
+            if (y + infoBox.offsetHeight > window.innerHeight) y = window.innerHeight - infoBox.offsetHeight - 8;
+            infoBox.style.left = x + 'px';
+            infoBox.style.top = y + 'px';
+        }
+        document.querySelectorAll('.task-item').forEach(item => {
+            item.addEventListener('mouseenter', function(e) {
+                const data = JSON.parse(this.getAttribute('data-snapshot'));
+                showInfoBox(e, data);
+            });
+            item.addEventListener('mousemove', function(e) {
+                positionInfoBox(e);
+            });
+            item.addEventListener('mouseleave', function() {
+                hideInfoBox();
+            });
+        });
+    });
     </script>
 </body>
 </html>

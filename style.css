@@ -1,0 +1,598 @@
+:root {
+    --primary-color: #6C63FF;
+    --secondary-color: #FF6584;
+    --accent-color: #00D9F5;
+    --background-dark: #1A1B1E;
+    --card-bg: #2D2E32;
+    --text-primary: #FFFFFF;
+    --text-secondary: #A0A0A0;
+    --success-color: #00C853;
+    --warning-color: #FFD600;
+    --danger-color: #FF1744;
+    --border-radius: 12px;
+    --transition: all 0.3s ease;
+    --border-color: #3A3B3F;
+}
+
+/* Global Styles */
+body {
+    background-color: var(--background-dark);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    line-height: 1.6;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+p, span, div {
+    color: var(--text-primary);
+}
+
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Card Styling */
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    opacity: 1 !important;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+.card-title {
+    color: var(--text-primary) !important;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.card-text {
+    color: var(--text-primary) !important;
+    margin-bottom: 1rem;
+}
+
+/* Button Styling */
+.btn {
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border: none;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #5A52E0;
+    transform: translateY(-2px);
+    color: white;
+}
+
+.btn-secondary {
+    background-color: var(--card-bg);
+    border: 1px solid var(--text-secondary);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+    background-color: var(--text-secondary);
+    color: var(--background-dark);
+}
+
+/* Form Controls */
+.form-control, .form-select {
+    background-color: var(--card-bg);
+    border: 1px solid #3A3B3F;
+    color: var(--text-primary);
+    border-radius: 8px;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--card-bg);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.25rem rgba(108, 99, 255, 0.25);
+}
+
+.form-label {
+    color: var(--text-primary);
+}
+
+/* Modal Styling */
+.modal-content {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    border: none;
+}
+
+.modal-header {
+    border-bottom: 1px solid #3A3B3F;
+}
+
+.modal-footer {
+    border-top: 1px solid #3A3B3F;
+}
+
+.modal-title {
+    color: var(--text-primary);
+}
+
+/* Table Styling */
+.table {
+    color: var(--text-primary);
+}
+
+.table thead th {
+    background-color: var(--card-bg);
+    border-bottom: 2px solid #3A3B3F;
+    color: var(--text-primary);
+}
+
+.table tbody td {
+    border-color: #3A3B3F;
+}
+
+/* Navigation */
+.navbar {
+    background-color: var(--card-bg) !important;
+    border-bottom: 1px solid #3A3B3F;
+    padding: 0.5rem 1rem;
+    height: auto;
+}
+
+.navbar-brand {
+    font-size: 1.1rem;
+    padding: 0.25rem 0;
+    color: var(--text-primary) !important;
+}
+
+.nav-link {
+    padding: 0.25rem 0.75rem !important;
+    font-size: 0.9rem;
+    color: var(--text-primary) !important;
+}
+
+.navbar .dropdown-menu {
+    background-color: var(--card-bg);
+    border: 1px solid #3A3B3F;
+    margin-top: 0.5rem;
+}
+
+.navbar .dropdown-item {
+    color: var(--text-primary);
+    padding: 0.4rem 1rem;
+    font-size: 0.9rem;
+}
+
+.navbar .dropdown-item:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Status Badges */
+.badge {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.bg-info {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+.bg-warning {
+    background-color: var(--warning-color) !important;
+    color: #000 !important;
+}
+
+.bg-success {
+    background-color: var(--success-color) !important;
+    color: white !important;
+}
+
+/* Task Filter Buttons */
+.btn-group .btn {
+    border: 1px solid #3A3B3F;
+    color: var(--text-secondary);
+}
+
+.btn-group .btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Task Actions */
+.btn-group-sm .btn {
+    border-radius: 6px;
+    margin: 0 2px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.task-card {
+    animation: fadeIn 0.3s ease-out;
+    opacity: 1 !important;
+    transition: all 0.3s ease;
+}
+
+.task-card .card {
+    background-color: var(--card-bg);
+    opacity: 1 !important;
+}
+
+.task-card .card-body {
+    opacity: 1 !important;
+}
+
+.task-card .card-title,
+.task-card .card-text {
+    color: var(--text-primary) !important;
+    opacity: 1 !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--background-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+/* Alert Styling */
+.alert {
+    border-radius: var(--border-radius);
+    border: none;
+}
+
+.alert-success {
+    background-color: rgba(0, 200, 83, 0.1);
+    color: var(--success-color);
+}
+
+.alert-danger {
+    background-color: rgba(255, 23, 68, 0.1);
+    color: var(--danger-color);
+}
+
+/* Calendar Styling */
+.calendar {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+}
+
+.calendar-header {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.calendar-day {
+    color: var(--text-primary);
+}
+
+.calendar-day:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Project Cards */
+.project-card {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+}
+
+.project-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Comments Section */
+.comment {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    border: 1px solid #3A3B3F;
+}
+
+.comment-header {
+    color: var(--text-secondary);
+}
+
+/* Login/Register Forms */
+.auth-form {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+}
+
+.auth-form h2 {
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+
+/* Links */
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+a:hover {
+    color: #5A52E0;
+}
+
+/* Priority Badges */
+.bg-danger {
+    background-color: var(--danger-color) !important;
+    color: white !important;
+}
+
+.bg-warning {
+    background-color: var(--warning-color) !important;
+    color: #000 !important;
+}
+
+.bg-secondary {
+    background-color: var(--text-secondary) !important;
+    color: white !important;
+}
+
+/* Reports Section */
+.report-card {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+}
+
+.report-title {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.report-value {
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+/* Task Card Styling */
+.task-card .badge {
+    font-weight: 500;
+    padding: 0.4rem 0.75rem;
+}
+
+/* Task Actions */
+.task-card .btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.task-card .btn-outline-primary,
+.task-card .btn-outline-secondary,
+.task-card .btn-outline-danger {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+}
+
+.task-card .btn-outline-primary:hover,
+.task-card .btn-outline-secondary:hover,
+.task-card .btn-outline-danger:hover {
+    color: white;
+}
+
+/* Task Status Buttons */
+.task-card .btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.task-card .btn-group .btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Task Priority Badges */
+.task-card .bg-danger {
+    background-color: var(--danger-color) !important;
+    color: white !important;
+}
+
+.task-card .bg-warning {
+    background-color: var(--warning-color) !important;
+    color: #000 !important;
+}
+
+.task-card .bg-secondary {
+    background-color: var(--text-secondary) !important;
+    color: white !important;
+}
+
+/* Task Filter Buttons */
+.btn-group[role="group"] .btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.9rem;
+}
+
+.btn-group[role="group"] .btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Light Mode Theme */
+.light-mode {
+    --background-dark: #f8f9fa;
+    --card-bg: #fff;
+    --text-primary: #222;
+    --text-secondary: #555;
+    --primary-color: #6C63FF;
+    --secondary-color: #FF6584;
+    --accent-color: #00D9F5;
+    --success-color: #00C853;
+    --warning-color: #FFD600;
+    --danger-color: #FF1744;
+    --border-color: #e0e0e0;
+}
+
+.light-mode body {
+    background-color: var(--background-dark);
+    color: var(--text-primary);
+}
+
+.light-mode .navbar {
+    background-color: var(--card-bg) !important;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.light-mode .card {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.light-mode .modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.light-mode .form-control, .light-mode .form-select {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.light-mode .btn-primary {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+.light-mode .btn-secondary {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.light-mode .badge {
+    color: #fff;
+}
+
+.light-mode .bg-info {
+    background-color: var(--primary-color) !important;
+}
+
+.light-mode .bg-warning {
+    background-color: var(--warning-color) !important;
+    color: #000 !important;
+}
+
+.light-mode .bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.light-mode .bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+.light-mode .bg-secondary {
+    background-color: var(--text-secondary) !important;
+    color: #fff !important;
+}
+
+.light-mode .alert-success {
+    background-color: #e6f9ed;
+    color: var(--success-color);
+}
+
+.light-mode .alert-danger {
+    background-color: #fdeaea;
+    color: var(--danger-color);
+}
+
+.light-mode .alert-info {
+    background-color: #eaf4fd;
+    color: var(--primary-color);
+}
+
+.light-mode .table {
+    color: var(--text-primary);
+}
+
+.light-mode .table thead th {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.light-mode .table tbody td {
+    border-color: var(--border-color);
+}
+
+/* Calendar Task Item Full Width */
+.calendar .task-item {
+    display: block;
+    width: 100%;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 0.25rem;
+    font-size: 0.97rem;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    box-shadow: none;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.calendar .task-item:last-child {
+    margin-bottom: 0;
+}
+.calendar .task-item:hover, .calendar .task-item:focus {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    filter: brightness(1.08);
+    text-decoration: none;
+    color: var(--text-primary);
+}
+
+/* Modal Icon Theming */
+.modal .fa,
+.modal .fas,
+.modal .far,
+.modal .fab,
+.modal .bi {
+    color: var(--primary-color);
+    transition: color 0.2s;
+}
+.light-mode .modal .fa,
+.light-mode .modal .fas,
+.light-mode .modal .far,
+.light-mode .modal .fab,
+.light-mode .modal .bi {
+    color: var(--primary-color);
+}

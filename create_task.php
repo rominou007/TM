@@ -43,34 +43,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Prepare SQL statement based on whether due_date is provided
         if (!empty($due_date)) {
-            $stmt = $pdo->prepare("
-                INSERT INTO tasks 
-                (project_id, user_id, title, description, status, priority, due_date) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ");
-            $result = $stmt->execute([
-                $project_id, 
-                $_SESSION['user_id'], 
-                $title, 
-                $description, 
-                $status, 
-                $priority, 
-                $due_date
-            ]);
+            if ($status === 'Completed') {
+                $stmt = $pdo->prepare("
+                    INSERT INTO tasks 
+                    (project_id, user_id, title, description, status, priority, due_date, completed_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                ");
+                $result = $stmt->execute([
+                    $project_id, 
+                    $_SESSION['user_id'], 
+                    $title, 
+                    $description, 
+                    $status, 
+                    $priority, 
+                    $due_date
+                ]);
+            } else {
+                $stmt = $pdo->prepare("
+                    INSERT INTO tasks 
+                    (project_id, user_id, title, description, status, priority, due_date, completed_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+                ");
+                $result = $stmt->execute([
+                    $project_id, 
+                    $_SESSION['user_id'], 
+                    $title, 
+                    $description, 
+                    $status, 
+                    $priority, 
+                    $due_date
+                ]);
+            }
         } else {
-            $stmt = $pdo->prepare("
-                INSERT INTO tasks 
-                (project_id, user_id, title, description, status, priority) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            ");
-            $result = $stmt->execute([
-                $project_id, 
-                $_SESSION['user_id'], 
-                $title, 
-                $description, 
-                $status, 
-                $priority
-            ]);
+            if ($status === 'Completed') {
+                $stmt = $pdo->prepare("
+                    INSERT INTO tasks 
+                    (project_id, user_id, title, description, status, priority, completed_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                ");
+                $result = $stmt->execute([
+                    $project_id, 
+                    $_SESSION['user_id'], 
+                    $title, 
+                    $description, 
+                    $status, 
+                    $priority
+                ]);
+            } else {
+                $stmt = $pdo->prepare("
+                    INSERT INTO tasks 
+                    (project_id, user_id, title, description, status, priority, completed_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, NULL)
+                ");
+                $result = $stmt->execute([
+                    $project_id, 
+                    $_SESSION['user_id'], 
+                    $title, 
+                    $description, 
+                    $status, 
+                    $priority
+                ]);
+            }
         }
         
         if ($result) {

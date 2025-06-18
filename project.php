@@ -56,15 +56,15 @@ unset($_SESSION['success'], $_SESSION['error']);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($project['name']); ?> - Task Management</title>
     <?php include 'links.php'; ?>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <?php include 'navbar.html'; ?>
     <div class="container-fluid">
-        <div class="row vh-100">
-            <!-- Include Navbar -->
-            <?php include 'navbar.html'; ?>
-            
-            <!-- Main Content -->
-            <div class="col-md-10 col-lg-11 p-4">
+        <div class="row">
+            <div class="col-12 col-md-10 offset-md-1 col-lg-10 offset-lg-1 p-4">
                 <!-- Messages -->
                 <?php if ($success): ?>
                     <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
@@ -293,6 +293,41 @@ unset($_SESSION['success'], $_SESSION['error']);
                     } else {
                         task.style.display = 'none';
                     }
+                });
+            });
+        });
+    });
+    </script>
+
+    <!-- GSAP for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate cards on load
+        gsap.from('.task-card', {
+            duration: 0.5,
+            y: 20,
+            opacity: 0,
+            stagger: 0.1,
+            ease: 'power2.out'
+        });
+        // Add hover effects to cards
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                gsap.to(card, {
+                    duration: 0.3,
+                    y: -5,
+                    boxShadow: '0 8px 15px rgba(0, 0, 0, 0.2)',
+                    ease: 'power2.out'
+                });
+            });
+            card.addEventListener('mouseleave', () => {
+                gsap.to(card, {
+                    duration: 0.3,
+                    y: 0,
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    ease: 'power2.out'
                 });
             });
         });

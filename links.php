@@ -4,16 +4,15 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <!-- Bootstrap Icons -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
 <!-- Custom CSS -->
-<link href="./css/main.css" rel="stylesheet" />
+<link href="style.css" rel="stylesheet" />
 <style>
     .nav-link.active {
         background-color: #0d6efd;
         color: white !important;
         border-radius: 5px;
-    }
-    .nav-link {
-        color: #6c757d;
     }
     .navbar-icon {
         font-size: 1.5rem;

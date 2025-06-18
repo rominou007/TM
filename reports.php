@@ -12,70 +12,133 @@ if (!isset($_SESSION['user_id'])) {
 // Get user ID
 $user_id = $_SESSION['user_id'];
 
-// Task statistics
-$task_stats = $pdo->prepare("
+// Handle success and error messages
+$success = $_SESSION['success'] ?? '';
+$error = $_SESSION['error'] ?? '';
+unset($_SESSION['success'], $_SESSION['error']);
+
+// Initialize statistics arrays
+$task_statistics = [
+    'total_tasks' => 0,
+    'todo_tasks' => 0,
+    'in_progress_tasks' => 0,
+    'completed_tasks' => 0
+];
+
+$project_statistics = [
+    'total_projects' => 0,
+    'planning_projects' => 0,
+    'in_progress_projects' => 0,
+    'completed_projects' => 0
+];
+
+$task_priority = [
+    'Low' => 0,
+    'Medium' => 0,
+    'High' => 0
+];
+
+$project_priority = [
+    'Low' => 0,
+    'Medium' => 0,
+    'High' => 0
+];
+
+// Fetch task statistics
+$stmt = $pdo->prepare('
     SELECT 
-        COUNT(*) AS total_tasks,
-        SUM(CASE WHEN status = 'To Do' THEN 1 ELSE 0 END) AS todo_tasks,
-        SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress_tasks,
-        SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed_tasks
+        COUNT(*) as total_tasks,
+        SUM(CASE WHEN status = "To Do" THEN 1 ELSE 0 END) as todo_tasks,
+        SUM(CASE WHEN status = "In Progress" THEN 1 ELSE 0 END) as in_progress_tasks,
+        SUM(CASE WHEN status = "Completed" THEN 1 ELSE 0 END) as completed_tasks
+    FROM tasks 
+    WHERE user_id = ?
+');
+$stmt->execute([$_SESSION['user_id']]);
+$task_stats = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if ($task_stats) {
+    $task_statistics['total_tasks'] = (int)$task_stats['total_tasks'];
+    $task_statistics['todo_tasks'] = (int)$task_stats['todo_tasks'];
+    $task_statistics['in_progress_tasks'] = (int)$task_stats['in_progress_tasks'];
+    $task_statistics['completed_tasks'] = (int)$task_stats['completed_tasks'];
+}
+
+// Fetch project statistics
+$stmt = $pdo->prepare('
+    SELECT 
+        COUNT(*) as total_projects,
+        SUM(CASE WHEN status = "Planning" THEN 1 ELSE 0 END) as planning_projects,
+        SUM(CASE WHEN status = "In Progress" THEN 1 ELSE 0 END) as in_progress_projects,
+        SUM(CASE WHEN status = "Completed" THEN 1 ELSE 0 END) as completed_projects
+    FROM projects 
+    WHERE user_id = ?
+');
+$stmt->execute([$_SESSION['user_id']]);
+$project_stats = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if ($project_stats) {
+    $project_statistics['total_projects'] = (int)$project_stats['total_projects'];
+    $project_statistics['planning_projects'] = (int)$project_stats['planning_projects'];
+    $project_statistics['in_progress_projects'] = (int)$project_stats['in_progress_projects'];
+    $project_statistics['completed_projects'] = (int)$project_stats['completed_projects'];
+}
+
+// Fetch task priority distribution
+$stmt = $pdo->prepare('
+    SELECT status, COUNT(*) as count
     FROM tasks
     WHERE user_id = ?
-");
-$task_stats->execute([$user_id]);
-$task_statistics = $task_stats->fetch();
+    GROUP BY status
+');
+$stmt->execute([$_SESSION['user_id']]);
+$task_priorities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Project statistics
-$project_stats = $pdo->prepare("
-    SELECT 
-        COUNT(*) AS total_projects,
-        SUM(CASE WHEN status = 'Planning' THEN 1 ELSE 0 END) AS planning_projects,
-        SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress_projects,
-        SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed_projects
+foreach ($task_priorities as $priority) {
+    $task_priority[$priority['status']] = (int)$priority['count'];
+}
+
+// Fetch project priority distribution
+$stmt = $pdo->prepare('
+    SELECT status, COUNT(*) as count
     FROM projects
     WHERE user_id = ?
-");
-$project_stats->execute([$user_id]);
-$project_statistics = $project_stats->fetch();
+    GROUP BY status
+');
+$stmt->execute([$_SESSION['user_id']]);
+$project_priorities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Overdue tasks
-$overdue_tasks = $pdo->prepare("
-    SELECT t.*, p.name AS project_name
-    FROM tasks t
-    JOIN projects p ON t.project_id = p.project_id
-    WHERE t.user_id = ?
-      AND t.status <> 'Completed'
-      AND t.due_date < CURRENT_DATE
-    ORDER BY t.due_date
-");
-$overdue_tasks->execute([$user_id]);
-$overdue = $overdue_tasks->fetchAll();
+foreach ($project_priorities as $priority) {
+    $project_priority[$priority['status']] = (int)$priority['count'];
+}
 
-// Tasks due soon (next 7 days)
-$due_soon_tasks = $pdo->prepare("
-    SELECT t.*, p.name AS project_name
-    FROM tasks t
-    JOIN projects p ON t.project_id = p.project_id
-    WHERE t.user_id = ?
-      AND t.status <> 'Completed'
-      AND t.due_date BETWEEN CURRENT_DATE AND DATE_ADD(CURRENT_DATE, INTERVAL 7 DAY)
-    ORDER BY t.due_date
-");
-$due_soon_tasks->execute([$user_id]);
-$due_soon = $due_soon_tasks->fetchAll();
+// Fetch recent activity
+$stmt = $pdo->prepare('
+    (SELECT 
+        created_at,
+        "Task" as type,
+        title as description,
+        status
+    FROM tasks 
+    WHERE user_id = ?)
+    UNION ALL
+    (SELECT 
+        created_at,
+        "Project" as type,
+        name as description,
+        status
+    FROM projects 
+    WHERE user_id = ?)
+    ORDER BY created_at DESC
+    LIMIT 10
+');
+$stmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
+$recent_activity = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Recently completed tasks (last 14 days)
-$completed_tasks = $pdo->prepare("
-    SELECT t.*, p.name AS project_name
-    FROM tasks t
-    JOIN projects p ON t.project_id = p.project_id
-    WHERE t.user_id = ?
-      AND t.status = 'Completed'
-      AND t.due_date >= DATE_SUB(CURRENT_DATE, INTERVAL 14 DAY)
-    ORDER BY t.due_date DESC
-");
-$completed_tasks->execute([$user_id]);
-$recently_completed = $completed_tasks->fetchAll();
+// Initialize empty array if no activity found
+if (empty($recent_activity)) {
+    $recent_activity = [];
+}
 
 // Get task counts by project
 $project_task_counts = $pdo->prepare("
@@ -96,244 +159,157 @@ $project_tasks = $project_task_counts->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reports - Task Management</title>
+    <title>Reports</title>
     <?php include 'links.php'; ?>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container-fluid">
-        <div class="row vh-100">
-            <!-- Include Navbar -->
+        <div class="row">
             <?php include 'navbar.html'; ?>
             
             <!-- Main Content -->
             <div class="col-md-10 col-lg-11 p-4">
-                <!-- Header -->
+                <!-- Messages -->
+                <?php if ($success): ?>
+                    <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
+                <?php endif; ?>
+                <?php if ($error): ?>
+                    <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+                <?php endif; ?>
+                
                 <header class="mb-4">
-                    <h1>Reports & Analytics</h1>
-                    <p class="text-muted">Track your productivity and project statistics</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1>Reports</h1>
+                            <p class="text-muted">View detailed reports and analytics.</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print Report
+                            </button>
+                        </div>
+                    </div>
                 </header>
                 
-                <!-- Summary Statistics -->
+                <!-- Summary Cards -->
                 <div class="row mb-4">
-                    <div class="col-md-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header">
-                                <h5 class="mb-0">Task Statistics</h5>
-                            </div>
+                    <div class="col-md-3">
+                        <div class="card">
                             <div class="card-body">
-                                <div class="row text-center">
-                                    <div class="col-6 col-md-3 mb-3">
-                                        <h3 class="text-primary"><?php echo $task_statistics['total_tasks']; ?></h3>
-                                        <span class="text-muted">Total</span>
-                                    </div>
-                                    <div class="col-6 col-md-3 mb-3">
-                                        <h3 class="text-info"><?php echo $task_statistics['todo_tasks']; ?></h3>
-                                        <span class="text-muted">To Do</span>
-                                    </div>
-                                    <div class="col-6 col-md-3 mb-3">
-                                        <h3 class="text-warning"><?php echo $task_statistics['in_progress_tasks']; ?></h3>
-                                        <span class="text-muted">In Progress</span>
-                                    </div>
-                                    <div class="col-6 col-md-3 mb-3">
-                                        <h3 class="text-success"><?php echo $task_statistics['completed_tasks']; ?></h3>
-                                        <span class="text-muted">Completed</span>
-                                    </div>
-                                </div>
-                                
-                                <?php if ($task_statistics['total_tasks'] > 0): ?>
-                                    <div class="progress mt-3">
-                                        <?php 
-                                        $todo_percent = ($task_statistics['todo_tasks'] / $task_statistics['total_tasks']) * 100;
-                                        $in_progress_percent = ($task_statistics['in_progress_tasks'] / $task_statistics['total_tasks']) * 100;
-                                        $completed_percent = ($task_statistics['completed_tasks'] / $task_statistics['total_tasks']) * 100;
-                                        ?>
-                                        <div class="progress-bar bg-info" role="progressbar" style="width: <?php echo $todo_percent; ?>%">
-                                            <?php if ($todo_percent > 10): echo $task_statistics['todo_tasks']; endif; ?>
-                                        </div>
-                                        <div class="progress-bar bg-warning" role="progressbar" style="width: <?php echo $in_progress_percent; ?>%">
-                                            <?php if ($in_progress_percent > 10): echo $task_statistics['in_progress_tasks']; endif; ?>
-                                        </div>
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: <?php echo $completed_percent; ?>%">
-                                            <?php if ($completed_percent > 10): echo $task_statistics['completed_tasks']; endif; ?>
-                                        </div>
-                                    </div>
-                                    <div class="text-center mt-2">
-                                        <small class="text-muted">Completion Rate: 
-                                            <?php echo round($completed_percent, 1); ?>%
-                                        </small>
-                                    </div>
-                                <?php endif; ?>
+                                <h6 class="card-subtitle mb-2 text-muted">Total Tasks</h6>
+                                <h2 class="card-title mb-0"><?php echo $task_statistics['total_tasks']; ?></h2>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="col-md-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header">
-                                <h5 class="mb-0">Project Statistics</h5>
-                            </div>
+                    <div class="col-md-3">
+                        <div class="card">
                             <div class="card-body">
-                                <div class="row text-center">
-                                    <div class="col-6 col-md-3 mb-3">
-                                        <h3 class="text-primary"><?php echo $project_statistics['total_projects']; ?></h3>
-                                        <span class="text-muted">Total</span>
-                                    </div>
-                                    <div class="col-6 col-md-3 mb-3">
-                                        <h3 class="text-info"><?php echo $project_statistics['planning_projects']; ?></h3>
-                                        <span class="text-muted">Planning</span>
-                                    </div>
-                                    <div class="col-6 col-md-3 mb-3">
-                                        <h3 class="text-warning"><?php echo $project_statistics['in_progress_projects']; ?></h3>
-                                        <span class="text-muted">In Progress</span>
-                                    </div>
-                                    <div class="col-6 col-md-3 mb-3">
-                                        <h3 class="text-success"><?php echo $project_statistics['completed_projects']; ?></h3>
-                                        <span class="text-muted">Completed</span>
-                                    </div>
-                                </div>
-                                
-                                <?php if ($project_statistics['total_projects'] > 0): ?>
-                                    <div class="progress mt-3">
-                                        <?php 
-                                        $planning_percent = ($project_statistics['planning_projects'] / $project_statistics['total_projects']) * 100;
-                                        $in_progress_percent = ($project_statistics['in_progress_projects'] / $project_statistics['total_projects']) * 100;
-                                        $completed_percent = ($project_statistics['completed_projects'] / $project_statistics['total_projects']) * 100;
-                                        ?>
-                                        <div class="progress-bar bg-info" role="progressbar" style="width: <?php echo $planning_percent; ?>%">
-                                            <?php if ($planning_percent > 10): echo $project_statistics['planning_projects']; endif; ?>
-                                        </div>
-                                        <div class="progress-bar bg-warning" role="progressbar" style="width: <?php echo $in_progress_percent; ?>%">
-                                            <?php if ($in_progress_percent > 10): echo $project_statistics['in_progress_projects']; endif; ?>
-                                        </div>
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: <?php echo $completed_percent; ?>%">
-                                            <?php if ($completed_percent > 10): echo $project_statistics['completed_projects']; endif; ?>
-                                        </div>
-                                    </div>
-                                    <div class="text-center mt-2">
-                                        <small class="text-muted">Completion Rate: 
-                                            <?php echo round($completed_percent, 1); ?>%
-                                        </small>
-                                    </div>
-                                <?php endif; ?>
+                                <h6 class="card-subtitle mb-2 text-muted">Completed Tasks</h6>
+                                <h2 class="card-title mb-0"><?php echo $task_statistics['completed_tasks']; ?></h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Total Projects</h6>
+                                <h2 class="card-title mb-0"><?php echo $project_statistics['total_projects']; ?></h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Completion Rate</h6>
+                                <h2 class="card-title mb-0"><?php echo round(($task_statistics['completed_tasks'] / $task_statistics['total_tasks']) * 100); ?>%</h2>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Task Lists -->
+                <!-- Charts Row -->
+                <div class="row mb-4">
+                    <!-- Task Status Distribution -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Task Status Distribution</h5>
+                                <canvas id="taskStatusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Project Status Distribution -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Project Status Distribution</h5>
+                                <canvas id="projectStatusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Task Priority Distribution -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Task Priority Distribution</h5>
+                                <canvas id="taskPriorityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Project Priority Distribution -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Project Priority Distribution</h5>
+                                <canvas id="projectPriorityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity -->
                 <div class="row">
-                    <!-- Overdue Tasks -->
-                    <div class="col-md-6 mb-4">
+                    <div class="col-12">
                         <div class="card">
-                            <div class="card-header bg-danger text-white">
-                                <h5 class="mb-0">Overdue Tasks (<?php echo count($overdue); ?>)</h5>
-                            </div>
                             <div class="card-body">
-                                <?php if (empty($overdue)): ?>
-                                    <p class="text-muted">No overdue tasks. Great job staying on track!</p>
-                                <?php else: ?>
-                                    <div class="list-group">
-                                        <?php foreach ($overdue as $task): ?>
-                                            <a href="task.php?id=<?php echo $task['task_id']; ?>" class="list-group-item list-group-item-action">
-                                                <div class="d-flex w-100 justify-content-between">
-                                                    <h6 class="mb-1"><?php echo htmlspecialchars($task['title']); ?></h6>
-                                                    <small class="text-danger"><?php echo date('M d', strtotime($task['due_date'])); ?></small>
-                                                </div>
-                                                <small class="text-muted"><?php echo htmlspecialchars($task['project_name']); ?></small>
-                                            </a>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Due Soon Tasks -->
-                    <div class="col-md-6 mb-4">
-                        <div class="card">
-                            <div class="card-header bg-warning text-dark">
-                                <h5 class="mb-0">Due Soon (<?php echo count($due_soon); ?>)</h5>
-                            </div>
-                            <div class="card-body">
-                                <?php if (empty($due_soon)): ?>
-                                    <p class="text-muted">No tasks due in the next 7 days.</p>
-                                <?php else: ?>
-                                    <div class="list-group">
-                                        <?php foreach ($due_soon as $task): ?>
-                                            <a href="task.php?id=<?php echo $task['task_id']; ?>" class="list-group-item list-group-item-action">
-                                                <div class="d-flex w-100 justify-content-between">
-                                                    <h6 class="mb-1"><?php echo htmlspecialchars($task['title']); ?></h6>
-                                                    <small><?php echo date('M d', strtotime($task['due_date'])); ?></small>
-                                                </div>
-                                                <small class="text-muted"><?php echo htmlspecialchars($task['project_name']); ?></small>
-                                            </a>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Recently Completed -->
-                    <div class="col-md-6 mb-4">
-                        <div class="card">
-                            <div class="card-header bg-success text-white">
-                                <h5 class="mb-0">Recently Completed (<?php echo count($recently_completed); ?>)</h5>
-                            </div>
-                            <div class="card-body">
-                                <?php if (empty($recently_completed)): ?>
-                                    <p class="text-muted">No tasks completed in the last 14 days.</p>
-                                <?php else: ?>
-                                    <div class="list-group">
-                                        <?php foreach ($recently_completed as $task): ?>
-                                            <a href="task.php?id=<?php echo $task['task_id']; ?>" class="list-group-item list-group-item-action">
-                                                <div class="d-flex w-100 justify-content-between">
-                                                    <h6 class="mb-1"><?php echo htmlspecialchars($task['title']); ?></h6>
-                                                    <small><?php echo date('M d', strtotime($task['due_date'])); ?></small>
-                                                </div>
-                                                <small class="text-muted"><?php echo htmlspecialchars($task['project_name']); ?></small>
-                                            </a>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Project Task Counts -->
-                    <div class="col-md-6 mb-4">
-                        <div class="card">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0">Projects Overview</h5>
-                            </div>
-                            <div class="card-body">
-                                <?php if (empty($project_tasks)): ?>
-                                    <p class="text-muted">No projects created yet.</p>
-                                <?php else: ?>
-                                    <div class="list-group">
-                                        <?php foreach ($project_tasks as $project): ?>
-                                            <a href="project.php?id=<?php echo $project['project_id']; ?>" class="list-group-item list-group-item-action">
-                                                <div class="d-flex w-100 justify-content-between">
-                                                    <h6 class="mb-1"><?php echo htmlspecialchars($project['name']); ?></h6>
-                                                    <small><?php echo $project['task_count']; ?> tasks</small>
-                                                </div>
-                                                <?php if ($project['task_count'] > 0): ?>
-                                                    <div class="progress mt-2" style="height: 5px;">
-                                                        <div class="progress-bar bg-success" role="progressbar" 
-                                                             style="width: <?php echo ($project['completed_count'] / $project['task_count']) * 100; ?>%">
-                                                        </div>
-                                                    </div>
-                                                    <small class="text-muted">
-                                                        <?php echo $project['completed_count']; ?> of <?php echo $project['task_count']; ?> completed
-                                                        (<?php echo round(($project['completed_count'] / $project['task_count']) * 100); ?>%)
-                                                    </small>
-                                                <?php else: ?>
-                                                    <small class="text-muted">No tasks</small>
-                                                <?php endif; ?>
-                                            </a>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
+                                <h5 class="card-title">Recent Activity</h5>
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Type</th>
+                                                <th>Description</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($recent_activity as $activity): ?>
+                                                <tr>
+                                                    <td><?php echo date('Y-m-d', strtotime($activity['created_at'])); ?></td>
+                                                    <td><?php echo htmlspecialchars($activity['type']); ?></td>
+                                                    <td><?php echo htmlspecialchars($activity['description']); ?></td>
+                                                    <td>
+                                                        <span class="badge bg-<?php 
+                                                            echo ($activity['status'] == 'Completed') ? 'success' : 
+                                                                (($activity['status'] == 'In Progress') ? 'warning' : 'info'); 
+                                                        ?>"><?php echo htmlspecialchars($activity['status']); ?></span>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -342,7 +318,230 @@ $project_tasks = $project_task_counts->fetchAll();
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle with Popper -->
+    <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- GSAP for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize GSAP animations
+        gsap.from('.card', {
+            duration: 0.5,
+            y: 20,
+            opacity: 0,
+            stagger: 0.1,
+            ease: 'power2.out'
+        });
+
+        // Task Status Chart
+        const taskStatusCtx = document.getElementById('taskStatusChart').getContext('2d');
+        new Chart(taskStatusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['To Do', 'In Progress', 'Completed'],
+                datasets: [{
+                    data: [
+                        <?php echo $task_statistics['todo_tasks']; ?>,
+                        <?php echo $task_statistics['in_progress_tasks']; ?>,
+                        <?php echo $task_statistics['completed_tasks']; ?>
+                    ],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#fff'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Project Status Chart
+        const projectStatusCtx = document.getElementById('projectStatusChart').getContext('2d');
+        new Chart(projectStatusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Planning', 'In Progress', 'Completed'],
+                datasets: [{
+                    data: [
+                        <?php echo $project_statistics['planning_projects']; ?>,
+                        <?php echo $project_statistics['in_progress_projects']; ?>,
+                        <?php echo $project_statistics['completed_projects']; ?>
+                    ],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#fff'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Task Priority Chart
+        const taskPriorityCtx = document.getElementById('taskPriorityChart').getContext('2d');
+        new Chart(taskPriorityCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Low', 'Medium', 'High'],
+                datasets: [{
+                    label: 'Number of Tasks',
+                    data: [
+                        <?php echo $task_priority['Low']; ?>,
+                        <?php echo $task_priority['Medium']; ?>,
+                        <?php echo $task_priority['High']; ?>
+                    ],
+                    backgroundColor: [
+                        'rgba(108, 117, 125, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(220, 53, 69, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(108, 117, 125, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(220, 53, 69, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#fff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#fff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Project Priority Chart
+        const projectPriorityCtx = document.getElementById('projectPriorityChart').getContext('2d');
+        new Chart(projectPriorityCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Low', 'Medium', 'High'],
+                datasets: [{
+                    label: 'Number of Projects',
+                    data: [
+                        <?php echo $project_priority['Low']; ?>,
+                        <?php echo $project_priority['Medium']; ?>,
+                        <?php echo $project_priority['High']; ?>
+                    ],
+                    backgroundColor: [
+                        'rgba(108, 117, 125, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(220, 53, 69, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(108, 117, 125, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(220, 53, 69, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#fff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#fff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Add hover effects to cards
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                gsap.to(card, {
+                    duration: 0.3,
+                    y: -5,
+                    boxShadow: '0 8px 15px rgba(0, 0, 0, 0.2)',
+                    ease: 'power2.out'
+                });
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                gsap.to(card, {
+                    duration: 0.3,
+                    y: 0,
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    ease: 'power2.out'
+                });
+            });
+        });
+    });
+    </script>
 </body>
 </html>
