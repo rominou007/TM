@@ -1,7 +1,10 @@
 <?php
 // filepath: c:\xampp\htdocs\php\TM\create_project.php
 session_start();
+require_once 'functions.php';
 require_once 'config/db_connect.php';
+
+require_login();
 
 // Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
@@ -11,6 +14,12 @@ if (!isset($_SESSION['user_id'])) {
 
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $_SESSION['error'] = 'Invalid CSRF token.';
+        log_error('CSRF token mismatch on create_project');
+        header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? 'projects.php'));
+        exit;
+    }
     $name = trim($_POST['name'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $status = $_POST['status'] ?? 'Planning';
@@ -52,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } catch (PDOException $e) {
         $_SESSION['error'] = "Database error: " . $e->getMessage();
+        log_error('Create project error: ' . $e->getMessage());
         header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? 'projects.php'));
     }
     exit;

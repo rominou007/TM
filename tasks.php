@@ -1,6 +1,7 @@
 <?php
 // tasks.php
 session_start();
+require_once 'functions.php';
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit();
@@ -256,6 +257,7 @@ $projects = $stmt->fetchAll();
         <div class="modal-dialog">
             <div class="modal-content">
                 <form action="update_task.php" method="post">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                     <input type="hidden" name="task_id" id="editTaskId">
                     <div class="modal-header">
                         <h5 class="modal-title" id="editTaskModalLabel">Edit Task</h5>
@@ -334,6 +336,9 @@ $projects = $stmt->fetchAll();
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     
     <script>
+        window.CSRF_TOKEN = "<?php echo htmlspecialchars(generate_csrf_token()); ?>";
+    </script>
+    <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize GSAP animations
         gsap.from('.task-card', {
@@ -386,7 +391,6 @@ $projects = $stmt->fetchAll();
         if (editTaskModal) {
             editTaskModal.addEventListener('show.bs.modal', function(event) {
                 const button = event.relatedTarget;
-                
                 // Extract task data from data attributes
                 const taskId = button.getAttribute('data-task-id');
                 const taskTitle = button.getAttribute('data-task-title');
@@ -394,7 +398,7 @@ $projects = $stmt->fetchAll();
                 const taskStatus = button.getAttribute('data-task-status');
                 const taskPriority = button.getAttribute('data-task-priority');
                 const taskDueDate = button.getAttribute('data-task-due-date');
-                
+
                 // Update the modal's content with animation
                 const modalElements = {
                     taskId: editTaskModal.querySelector('#editTaskId'),
@@ -404,7 +408,7 @@ $projects = $stmt->fetchAll();
                     priority: editTaskModal.querySelector('#editPriority'),
                     dueDate: editTaskModal.querySelector('#editDueDate')
                 };
-                
+
                 // Animate modal content
                 gsap.from(editTaskModal.querySelector('.modal-content'), {
                     duration: 0.3,
@@ -412,7 +416,7 @@ $projects = $stmt->fetchAll();
                     opacity: 0,
                     ease: 'power2.out'
                 });
-                
+
                 // Update values
                 modalElements.taskId.value = taskId;
                 modalElements.title.value = taskTitle;
@@ -420,6 +424,12 @@ $projects = $stmt->fetchAll();
                 modalElements.status.value = taskStatus;
                 modalElements.priority.value = taskPriority;
                 modalElements.dueDate.value = taskDueDate;
+
+                // CSRF sync
+                const csrfInput = editTaskModal.querySelector('input[name="csrf_token"]');
+                if (csrfInput && window.CSRF_TOKEN) {
+                    csrfInput.value = window.CSRF_TOKEN;
+                }
             });
         }
         

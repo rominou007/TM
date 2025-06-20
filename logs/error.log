@@ -1,0 +1,8 @@
+[2025-06-18 13:05:48] CSRF token mismatch on update_task
+[2025-06-18 13:06:37] CSRF token mismatch on update_project
+[2025-06-18 13:07:44] CSRF token mismatch on update_project
+[2025-06-18 13:09:43] CSRF token mismatch on update_project
+[2025-06-18 13:11:52] CSRF token mismatch on update_project
+[2025-06-18 13:14:26] CSRF token mismatch on update_project
+[2025-06-18 13:14:41] CSRF token mismatch on create_project
+[2025-06-18 14:10:13] CSRF token mismatch on add_comment

@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'functions.php';
 if (isset($_SESSION['user_id'])) {
     header('Location: home.php');
     exit();
@@ -8,23 +9,35 @@ require_once 'config/db_connect.php';
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    
-    if (empty($username) || empty($password)) {
-        $error = 'Please fill in all fields';
+    // CSRF check
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid CSRF token.';
+        log_error('CSRF token mismatch on login');
     } else {
-        $stmt = $pdo->prepare('SELECT * FROM users WHERE username = ?');
-        $stmt->execute([$username]);
-        $user = $stmt->fetch();
+        $username = $_POST['username'] ?? '';
+        $password = $_POST['password'] ?? '';
         
-        if ($user && password_verify($password, $user['password'])) {
-            $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['username'] = $user['username'];
-            header('Location: home.php');
-            exit();
+        if (empty($username) || empty($password)) {
+            $error = 'Please fill in all fields';
         } else {
-            $error = 'Invalid username or password';
+            try {
+                $stmt = $pdo->prepare('SELECT * FROM users WHERE username = ?');
+                $stmt->execute([$username]);
+                $user = $stmt->fetch();
+                
+                if ($user && password_verify($password, $user['password'])) {
+                    secure_session_regenerate();
+                    $_SESSION['user_id'] = $user['user_id'];
+                    $_SESSION['username'] = $user['username'];
+                    header('Location: home.php');
+                    exit();
+                } else {
+                    $error = 'Invalid username or password';
+                }
+            } catch (Exception $e) {
+                $error = 'Login error.';
+                log_error('Login error: ' . $e->getMessage());
+            }
         }
     }
 }
@@ -58,25 +71,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                     <?php endif; ?>
                     
-                    <form method="post" action="login.php">
+                    <form method="post">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                         <div class="mb-3">
-                            <label for="username" class="form-label">
-                                <i class="fas fa-user me-2"></i>Username
-                            </label>
-                            <input type="text" class="form-control" id="username" name="username" required>
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required autofocus>
                         </div>
-                        
-                        <div class="mb-4">
-                            <label for="password" class="form-label">
-                                <i class="fas fa-lock me-2"></i>Password
-                            </label>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
                             <input type="password" class="form-control" id="password" name="password" required>
                         </div>
-                        
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-sign-in-alt me-2"></i>Login
-                            </button>
+                            <button type="submit" class="btn btn-primary">Login</button>
                         </div>
                     </form>
                     

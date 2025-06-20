@@ -1,6 +1,7 @@
 <?php
-require_once 'config/db_connect.php';
 session_start();
+require_once 'config/db_connect.php';
+require_once 'functions.php';
 
 // Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
@@ -185,6 +186,7 @@ unset($_SESSION['success'], $_SESSION['error']);
         <div class="modal-dialog">
             <div class="modal-content">
                 <form action="update_project.php" method="post">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                     <input type="hidden" name="project_id" value="<?php echo $project['project_id']; ?>">
                     <div class="modal-header">
                         <h5 class="modal-title" id="editProjectModalLabel">Edit Project</h5>
@@ -331,6 +333,23 @@ unset($_SESSION['success'], $_SESSION['error']);
                 });
             });
         });
+    });
+    </script>
+    <script>
+        window.CSRF_TOKEN = "<?php echo htmlspecialchars(generate_csrf_token()); ?>";
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Edit Project Modal CSRF sync
+        const editProjectModal = document.getElementById('editProjectModal');
+        if (editProjectModal) {
+            editProjectModal.addEventListener('show.bs.modal', function () {
+                const csrfInput = editProjectModal.querySelector('input[name=\'csrf_token\']');
+                if (csrfInput && window.CSRF_TOKEN) {
+                    csrfInput.value = window.CSRF_TOKEN;
+                }
+            });
+        }
     });
     </script>
 </body>

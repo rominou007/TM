@@ -1,6 +1,11 @@
 <?php
-require_once 'config/db_connect.php';
 session_start();
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+require_once 'config/db_connect.php';
+include_once 'functions.php';
 // Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
@@ -150,7 +155,7 @@ $tasks = $stmt->fetchAll();
                                                     data-project-name="<?php echo htmlspecialchars($project['name']); ?>"
                                                     data-project-description="<?php echo isset($project['description']) ? htmlspecialchars($project['description']) : ''; ?>"
                                                     data-project-status="<?php echo htmlspecialchars($project['status']); ?>"
-                                                    data-project-priority="<?php echo isset($project['priority']) ? htmlspecialchars($project['priority']) : 'Normal'; ?>">
+                                                    data-project-priority="<?php echo isset($project['priority']) ? htmlspecialchars($project['priority']) : 'Medium'; ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </button>
                                             
@@ -177,6 +182,7 @@ $tasks = $stmt->fetchAll();
         <div class="modal-dialog">
             <div class="modal-content">
                 <form action="create_project.php" method="post">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                     <div class="modal-header">
                         <h5 class="modal-title" id="addProjectModalLabel">Create New Project</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -226,11 +232,12 @@ $tasks = $stmt->fetchAll();
         </div>
     </div>
     
-    <!-- Edit Project Modal -->
+    <!-- Edit Project Modal (single instance) -->
     <div class="modal fade" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <form action="update_project.php" method="post">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                     <input type="hidden" name="project_id" id="editProjectId">
                     <div class="modal-header">
                         <h5 class="modal-title" id="editProjectModalLabel">Edit Project</h5>
@@ -241,12 +248,10 @@ $tasks = $stmt->fetchAll();
                             <label for="editProjectName" class="form-label">Project Name</label>
                             <input type="text" class="form-control" id="editProjectName" name="name" required>
                         </div>
-                        
                         <div class="mb-3">
                             <label for="editProjectDescription" class="form-label">Description</label>
                             <textarea class="form-control" id="editProjectDescription" name="description" rows="3"></textarea>
                         </div>
-                        
                         <div class="row mb-3">
                             <div class="col">
                                 <label for="editProjectStatus" class="form-label">Status</label>
@@ -256,13 +261,12 @@ $tasks = $stmt->fetchAll();
                                     <option value="Completed">Completed</option>
                                 </select>
                             </div>
-                            
                             <div class="col">
                                 <label for="editPriority" class="form-label">Priority</label>
                                 <select class="form-select" id="editPriority" name="priority">
-                                    <option value="Low" <?php echo isset($project['priority']) && $project['priority'] == 'Low' ? 'selected' : ''; ?>>Low</option>
-                                    <option value="Medium" <?php echo isset($project['priority']) && $project['priority'] == 'Medium' ? 'selected' : ''; ?>>Medium</option>
-                                    <option value="High" <?php echo isset($project['priority']) && $project['priority'] == 'High' ? 'selected' : ''; ?>>High</option>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
                                 </select>
                             </div>
                         </div>
@@ -302,6 +306,7 @@ $tasks = $stmt->fetchAll();
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     
     <script>
+    window.CSRF_TOKEN = "<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>";
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize GSAP animations
         gsap.from('.project-card', {
@@ -349,42 +354,29 @@ $tasks = $stmt->fetchAll();
             });
         });
         
-        // Enhanced Edit Project Modal
+        // Only one Edit Project Modal JS block
         const editProjectModal = document.getElementById('editProjectModal');
         if (editProjectModal) {
             editProjectModal.addEventListener('show.bs.modal', function(event) {
                 const button = event.relatedTarget;
-                
-                // Extract project data from data attributes
+                if (!button) return;
+                // Get data from button
                 const projectId = button.getAttribute('data-project-id');
                 const projectName = button.getAttribute('data-project-name');
                 const projectDescription = button.getAttribute('data-project-description');
                 const projectStatus = button.getAttribute('data-project-status');
                 const projectPriority = button.getAttribute('data-project-priority');
-                
-                // Update the modal's content with animation
-                const modalElements = {
-                    projectId: editProjectModal.querySelector('#editProjectId'),
-                    name: editProjectModal.querySelector('#editProjectName'),
-                    description: editProjectModal.querySelector('#editProjectDescription'),
-                    status: editProjectModal.querySelector('#editProjectStatus'),
-                    priority: editProjectModal.querySelector('#editPriority')
-                };
-                
-                // Animate modal content
-                gsap.from(editProjectModal.querySelector('.modal-content'), {
-                    duration: 0.3,
-                    y: 20,
-                    opacity: 0,
-                    ease: 'power2.out'
-                });
-                
-                // Update values
-                modalElements.projectId.value = projectId;
-                modalElements.name.value = projectName;
-                modalElements.description.value = projectDescription;
-                modalElements.status.value = projectStatus;
-                modalElements.priority.value = projectPriority;
+                // Set modal fields by ID
+                editProjectModal.querySelector('#editProjectId').value = projectId;
+                editProjectModal.querySelector('#editProjectName').value = projectName;
+                editProjectModal.querySelector('#editProjectDescription').value = projectDescription;
+                editProjectModal.querySelector('#editProjectStatus').value = projectStatus;
+                editProjectModal.querySelector('#editPriority').value = projectPriority;
+                // Also update CSRF token
+                const csrfInput = editProjectModal.querySelector('input[name="csrf_token"]');
+                if (csrfInput && window.CSRF_TOKEN) {
+                    csrfInput.value = window.CSRF_TOKEN;
+                }
             });
         }
         
@@ -433,6 +425,17 @@ $tasks = $stmt->fetchAll();
                 });
             });
         });
+
+        // Add Project Modal CSRF sync
+        const addProjectModal = document.getElementById('addProjectModal');
+        if (addProjectModal) {
+            addProjectModal.addEventListener('show.bs.modal', function () {
+                const csrfInput = addProjectModal.querySelector('input[name=\'csrf_token\']');
+                if (csrfInput && window.CSRF_TOKEN) {
+                    csrfInput.value = window.CSRF_TOKEN;
+                }
+            });
+        }
     });
     </script>
 </body>

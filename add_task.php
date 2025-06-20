@@ -1,7 +1,10 @@
 <?php
 // filepath: c:\xampp\htdocs\php\TM\add_task.php
 session_start();
+require_once 'functions.php';
 require_once 'config/db_connect.php';
+
+require_login();
 
 // Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
@@ -26,69 +29,74 @@ if (empty($projects)) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = trim($_POST['title'] ?? '');
-    $description = trim($_POST['description'] ?? '');
-    $status = $_POST['status'] ?? 'To Do';
-    $priority = $_POST['priority'] ?? 'Medium';
-    $due_date = $_POST['due_date'] ?? null;
-    $project_id = $_POST['project_id'] ?? null;
-    
-    // Basic validation
-    if (empty($title)) {
-        $error = "Task title is required";
-    } elseif (empty($project_id)) {
-        $error = "Project selection is required";
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid CSRF token.';
+        log_error('CSRF token mismatch on add_task');
     } else {
-        try {
-            // Verify project belongs to user
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM projects WHERE project_id = ? AND user_id = ?");
-            $stmt->execute([$project_id, $_SESSION['user_id']]);
-            
-            if ($stmt->fetchColumn() == 0) {
-                $error = "Invalid project selected";
-            } else {
-                // Insert task
-                if (!empty($due_date)) {
-                    $stmt = $pdo->prepare("
-                        INSERT INTO tasks 
-                        (project_id, user_id, title, description, status, priority, due_date) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ");
-                    $result = $stmt->execute([
-                        $project_id, 
-                        $_SESSION['user_id'], 
-                        $title, 
-                        $description, 
-                        $status, 
-                        $priority, 
-                        $due_date
-                    ]);
-                } else {
-                    $stmt = $pdo->prepare("
-                        INSERT INTO tasks 
-                        (project_id, user_id, title, description, status, priority) 
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    ");
-                    $result = $stmt->execute([
-                        $project_id, 
-                        $_SESSION['user_id'], 
-                        $title, 
-                        $description, 
-                        $status, 
-                        $priority
-                    ]);
-                }
+        $title = trim($_POST['title'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $status = $_POST['status'] ?? 'To Do';
+        $priority = $_POST['priority'] ?? 'Medium';
+        $due_date = $_POST['due_date'] ?? null;
+        $project_id = $_POST['project_id'] ?? null;
+        
+        // Basic validation
+        if (empty($title)) {
+            $error = "Task title is required";
+        } elseif (empty($project_id)) {
+            $error = "Project selection is required";
+        } else {
+            try {
+                // Verify project belongs to user
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM projects WHERE project_id = ? AND user_id = ?");
+                $stmt->execute([$project_id, $_SESSION['user_id']]);
                 
-                if ($result) {
-                    $_SESSION['success'] = "Task created successfully";
-                    header("Location: project.php?id=$project_id");
-                    exit;
+                if ($stmt->fetchColumn() == 0) {
+                    $error = "Invalid project selected";
                 } else {
-                    $error = "Failed to create task";
+                    // Insert task
+                    if (!empty($due_date)) {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO tasks 
+                            (project_id, user_id, title, description, status, priority, due_date) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ");
+                        $result = $stmt->execute([
+                            $project_id, 
+                            $_SESSION['user_id'], 
+                            $title, 
+                            $description, 
+                            $status, 
+                            $priority, 
+                            $due_date
+                        ]);
+                    } else {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO tasks 
+                            (project_id, user_id, title, description, status, priority) 
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ");
+                        $result = $stmt->execute([
+                            $project_id, 
+                            $_SESSION['user_id'], 
+                            $title, 
+                            $description, 
+                            $status, 
+                            $priority
+                        ]);
+                    }
+                    
+                    if ($result) {
+                        $_SESSION['success'] = "Task created successfully";
+                        header("Location: project.php?id=$project_id");
+                        exit;
+                    } else {
+                        $error = "Failed to create task";
+                    }
                 }
+            } catch (PDOException $e) {
+                $error = "Database error: " . $e->getMessage();
             }
-        } catch (PDOException $e) {
-            $error = "Database error: " . $e->getMessage();
         }
     }
 }
@@ -124,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="card mb-4">
                     <div class="card-body">
                         <form method="post">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                             <div class="mb-3">
                                 <label for="project_id" class="form-label">Project</label>
                                 <select class="form-select" id="project_id" name="project_id" required>

@@ -1,63 +1,71 @@
 <?php
 session_start();
+require_once 'functions.php';
 require_once 'config/db_connect.php';
 
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $confirm_password = $_POST['confirm_password'] ?? '';
-    
-    // Basic validation
-    if (empty($username) || empty($email) || empty($password)) {
-        $error = 'All fields are required';
-    } elseif ($password !== $confirm_password) {
-        $error = 'Passwords do not match';
-    } elseif (strlen($password) < 8) {
-        $error = 'Password must be at least 8 characters long';
+    // CSRF check
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid CSRF token.';
+        log_error('CSRF token mismatch on register');
     } else {
-        try {
-            // Check if username already exists
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ?");
-            $stmt->execute([$username]);
-            if ($stmt->fetchColumn() > 0) {
-                $error = 'Username already exists';
-            } else {
-                // Check if email already exists
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE email = ?");
-                $stmt->execute([$email]);
+        $username = trim($_POST['username'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
+        
+        // Basic validation
+        if (empty($username) || empty($email) || empty($password)) {
+            $error = 'All fields are required';
+        } elseif ($password !== $confirm_password) {
+            $error = 'Passwords do not match';
+        } elseif (strlen($password) < 8) {
+            $error = 'Password must be at least 8 characters long';
+        } else {
+            try {
+                $pdo->beginTransaction();
+                // Check if username already exists
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ?");
+                $stmt->execute([$username]);
                 if ($stmt->fetchColumn() > 0) {
-                    $error = 'Email already registered';
+                    $error = 'Username already exists';
                 } else {
-                    // Hash password
-                    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                    
-                    // Insert new user
-                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
-                    if ($stmt->execute([$username, $email, $hashed_password])) {
-                        $user_id = $pdo->lastInsertId();
-                        
-                        // Create default settings for user
-                        $stmt = $pdo->prepare("INSERT INTO user_settings (user_id) VALUES (?)");
-                        $stmt->execute([$user_id]);
-                        
-                        // Auto login after registration
-                        $_SESSION['user_id'] = $user_id;
-                        $_SESSION['username'] = $username;
-                        
-                        $success = 'Registration successful! Redirecting to dashboard...';
-                        // Redirect after a short delay
-                        header("Refresh: 2; URL=home.php");
+                    // Check if email already exists
+                    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE email = ?");
+                    $stmt->execute([$email]);
+                    if ($stmt->fetchColumn() > 0) {
+                        $error = 'Email already registered';
                     } else {
-                        $error = 'Registration failed';
+                        // Hash password
+                        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                        // Insert new user
+                        $stmt = $pdo->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
+                        if ($stmt->execute([$username, $email, $hashed_password])) {
+                            $user_id = $pdo->lastInsertId();
+                            // Create default settings for user
+                            $stmt = $pdo->prepare("INSERT INTO user_settings (user_id) VALUES (?)");
+                            $stmt->execute([$user_id]);
+                            $pdo->commit();
+                            // Auto login after registration
+                            secure_session_regenerate();
+                            $_SESSION['user_id'] = $user_id;
+                            $_SESSION['username'] = $username;
+                            $success = 'Registration successful! Redirecting to dashboard...';
+                            header("Refresh: 2; URL=home.php");
+                        } else {
+                            $pdo->rollBack();
+                            $error = 'Registration failed';
+                        }
                     }
                 }
+            } catch (PDOException $e) {
+                $pdo->rollBack();
+                $error = 'Database error: ' . $e->getMessage();
+                log_error('Register error: ' . $e->getMessage());
             }
-        } catch (PDOException $e) {
-            $error = 'Database error: ' . $e->getMessage();
         }
     }
 }
@@ -87,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php endif; ?>
                         
                         <form method="post">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                             <div class="mb-3">
                                 <label for="username" class="form-label">Username</label>
                                 <input type="text" class="form-control" id="username" name="username" 

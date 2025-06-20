@@ -1,7 +1,10 @@
 <?php
 // filepath: c:\xampp\htdocs\php\TM\update_task.php
 session_start();
+require_once 'functions.php';
 require_once 'config/db_connect.php';
+
+require_login();
 
 // Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
@@ -11,6 +14,12 @@ if (!isset($_SESSION['user_id'])) {
 
 // Check if the form was submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $_SESSION['error'] = 'Invalid CSRF token.';
+        log_error('CSRF token mismatch on update_task');
+        header('Location: tasks.php');
+        exit;
+    }
     $task_id = $_POST['task_id'] ?? '';
     $title = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');
