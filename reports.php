@@ -1,315 +1,199 @@
 <?php
-// filepath: c:\xampp\htdocs\php\TM\reports.php
 session_start();
-require_once 'config/db_connect.php';
-
-// Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
-    exit;
+    exit();
 }
-
-// Get user ID
+require_once 'config/db_connect.php';
+require_once 'report_queries.php';
 $user_id = $_SESSION['user_id'];
 
-// Handle success and error messages
-$success = $_SESSION['success'] ?? '';
-$error = $_SESSION['error'] ?? '';
-unset($_SESSION['success'], $_SESSION['error']);
+$tasksPerWeek = getTasksCompletedPerWeek($pdo, $user_id);
+$avgCompletion = getAverageCompletionTime($pdo, $user_id);
+$overdueTasks = getOverdueTasks($pdo, $user_id);
+$tasksByStatus = getTasksByStatus($pdo, $user_id);
+$tasksByPriority = getTasksByPriority($pdo, $user_id);
+$projectProgress = getProjectProgress($pdo, $user_id);
+$upcomingDeadlines = getUpcomingDeadlines($pdo, $user_id);
+$mostUsedTags = getMostUsedTags($pdo, $user_id);
+$mostActiveTasks = getMostActiveTasks($pdo, $user_id);
 
-// Initialize statistics arrays
-$task_statistics = [
-    'total_tasks' => 0,
-    'todo_tasks' => 0,
-    'in_progress_tasks' => 0,
-    'completed_tasks' => 0
-];
-
-$project_statistics = [
-    'total_projects' => 0,
-    'planning_projects' => 0,
-    'in_progress_projects' => 0,
-    'completed_projects' => 0
-];
-
-$task_priority = [
-    'Low' => 0,
-    'Medium' => 0,
-    'High' => 0
-];
-
-$project_priority = [
-    'Low' => 0,
-    'Medium' => 0,
-    'High' => 0
-];
-
-// Fetch task statistics
-$stmt = $pdo->prepare('
-    SELECT 
-        COUNT(*) as total_tasks,
-        SUM(CASE WHEN status = "To Do" THEN 1 ELSE 0 END) as todo_tasks,
-        SUM(CASE WHEN status = "In Progress" THEN 1 ELSE 0 END) as in_progress_tasks,
-        SUM(CASE WHEN status = "Completed" THEN 1 ELSE 0 END) as completed_tasks
-    FROM tasks 
-    WHERE user_id = ?
-');
-$stmt->execute([$_SESSION['user_id']]);
-$task_stats = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if ($task_stats) {
-    $task_statistics['total_tasks'] = (int)$task_stats['total_tasks'];
-    $task_statistics['todo_tasks'] = (int)$task_stats['todo_tasks'];
-    $task_statistics['in_progress_tasks'] = (int)$task_stats['in_progress_tasks'];
-    $task_statistics['completed_tasks'] = (int)$task_stats['completed_tasks'];
+// Prepare data for charts
+function chartLabels($arr, $key) {
+    return array_map(fn($row) => $row[$key], $arr);
 }
-
-// Fetch project statistics
-$stmt = $pdo->prepare('
-    SELECT 
-        COUNT(*) as total_projects,
-        SUM(CASE WHEN status = "Planning" THEN 1 ELSE 0 END) as planning_projects,
-        SUM(CASE WHEN status = "In Progress" THEN 1 ELSE 0 END) as in_progress_projects,
-        SUM(CASE WHEN status = "Completed" THEN 1 ELSE 0 END) as completed_projects
-    FROM projects 
-    WHERE user_id = ?
-');
-$stmt->execute([$_SESSION['user_id']]);
-$project_stats = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if ($project_stats) {
-    $project_statistics['total_projects'] = (int)$project_stats['total_projects'];
-    $project_statistics['planning_projects'] = (int)$project_stats['planning_projects'];
-    $project_statistics['in_progress_projects'] = (int)$project_stats['in_progress_projects'];
-    $project_statistics['completed_projects'] = (int)$project_stats['completed_projects'];
+function chartData($arr, $key) {
+    return array_map(fn($row) => (int)$row[$key], $arr);
 }
-
-// Fetch task priority distribution
-$stmt = $pdo->prepare('
-    SELECT status, COUNT(*) as count
-    FROM tasks
-    WHERE user_id = ?
-    GROUP BY status
-');
-$stmt->execute([$_SESSION['user_id']]);
-$task_priorities = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-foreach ($task_priorities as $priority) {
-    $task_priority[$priority['status']] = (int)$priority['count'];
-}
-
-// Fetch project priority distribution
-$stmt = $pdo->prepare('
-    SELECT status, COUNT(*) as count
-    FROM projects
-    WHERE user_id = ?
-    GROUP BY status
-');
-$stmt->execute([$_SESSION['user_id']]);
-$project_priorities = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-foreach ($project_priorities as $priority) {
-    $project_priority[$priority['status']] = (int)$priority['count'];
-}
-
-// Fetch recent activity
-$stmt = $pdo->prepare('
-    (SELECT 
-        created_at,
-        "Task" as type,
-        title as description,
-        status
-    FROM tasks 
-    WHERE user_id = ?)
-    UNION ALL
-    (SELECT 
-        created_at,
-        "Project" as type,
-        name as description,
-        status
-    FROM projects 
-    WHERE user_id = ?)
-    ORDER BY created_at DESC
-    LIMIT 10
-');
-$stmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
-$recent_activity = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Initialize empty array if no activity found
-if (empty($recent_activity)) {
-    $recent_activity = [];
-}
-
-// Get task counts by project
-$project_task_counts = $pdo->prepare("
-    SELECT p.project_id, p.name, COUNT(t.task_id) as task_count,
-        SUM(CASE WHEN t.status = 'Completed' THEN 1 ELSE 0 END) as completed_count
-    FROM projects p
-    LEFT JOIN tasks t ON p.project_id = t.project_id
-    WHERE p.user_id = ?
-    GROUP BY p.project_id
-    ORDER BY task_count DESC
-");
-$project_task_counts->execute([$user_id]);
-$project_tasks = $project_task_counts->fetchAll();
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reports</title>
+    <title>Test Reports</title>
     <?php include 'links.php'; ?>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container { position: relative; height: 320px; }
+        .card-title { font-weight: 600; }
+    </style>
 </head>
 <body>
+    <?php include 'navbar.html'; ?>
     <div class="container-fluid">
         <div class="row">
-            <?php include 'navbar.html'; ?>
-            
-            <!-- Main Content -->
-            <div class="col-md-10 col-lg-11 p-4">
-                <!-- Messages -->
-                <?php if ($success): ?>
-                    <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
-                <?php endif; ?>
-                <?php if ($error): ?>
-                    <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
-                <?php endif; ?>
-                
+            <div class="col-12 col-md-10 offset-md-1 col-lg-10 offset-lg-1 p-4">
                 <header class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h1>Reports</h1>
-                            <p class="text-muted">View detailed reports and analytics.</p>
-                        </div>
-                        <div>
-                            <button class="btn btn-primary" onclick="window.print()">
-                                <i class="bi bi-printer"></i> Print Report
-                            </button>
-                        </div>
-                    </div>
+                    <h1 class="mb-3">Analytics & Reports</h1>
                 </header>
-                
-                <!-- Summary Cards -->
-                <div class="row mb-4">
+                <div class="row g-4 mb-4">
                     <div class="col-md-3">
-                        <div class="card">
+                        <div class="card h-100 text-center">
                             <div class="card-body">
-                                <h6 class="card-subtitle mb-2 text-muted">Total Tasks</h6>
-                                <h2 class="card-title mb-0"><?php echo $task_statistics['total_tasks']; ?></h2>
+                                <div class="mb-2"><i class="fas fa-clock fa-2x text-primary"></i></div>
+                                <h6 class="card-title">Avg. Completion (days)</h6>
+                                <div class="display-6 mb-0"><?= $avgCompletion !== false ? round($avgCompletion, 2) : 'N/A' ?></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card">
+                        <div class="card h-100 text-center">
                             <div class="card-body">
-                                <h6 class="card-subtitle mb-2 text-muted">Completed Tasks</h6>
-                                <h2 class="card-title mb-0"><?php echo $task_statistics['completed_tasks']; ?></h2>
+                                <div class="mb-2"><i class="fas fa-exclamation-circle fa-2x text-danger"></i></div>
+                                <h6 class="card-title">Overdue Tasks</h6>
+                                <div class="display-6 mb-0 text-danger"><?= count($overdueTasks) ?></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card">
+                        <div class="card h-100 text-center">
                             <div class="card-body">
-                                <h6 class="card-subtitle mb-2 text-muted">Total Projects</h6>
-                                <h2 class="card-title mb-0"><?php echo $project_statistics['total_projects']; ?></h2>
+                                <div class="mb-2"><i class="fas fa-calendar-alt fa-2x text-warning"></i></div>
+                                <h6 class="card-title">Upcoming Deadlines</h6>
+                                <div class="display-6 mb-0 text-warning"><?= count($upcomingDeadlines) ?></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card">
+                        <div class="card h-100 text-center">
                             <div class="card-body">
-                                <h6 class="card-subtitle mb-2 text-muted">Completion Rate</h6>
-                                <h2 class="card-title mb-0"><?php echo round(($task_statistics['completed_tasks'] / $task_statistics['total_tasks']) * 100); ?>%</h2>
+                                <div class="mb-2"><i class="fas fa-tasks fa-2x text-success"></i></div>
+                                <h6 class="card-title">Projects</h6>
+                                <div class="display-6 mb-0 text-success"><?= count($projectProgress) ?></div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Charts Row -->
-                <div class="row mb-4">
-                    <!-- Task Status Distribution -->
+                <div class="row g-4 mb-4">
                     <div class="col-md-6">
-                        <div class="card">
+                        <div class="card h-100">
                             <div class="card-body">
-                                <h5 class="card-title">Task Status Distribution</h5>
-                                <canvas id="taskStatusChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Project Status Distribution -->
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">Project Status Distribution</h5>
-                                <canvas id="projectStatusChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Task Priority Distribution -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">Task Priority Distribution</h5>
-                                <canvas id="taskPriorityChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Project Priority Distribution -->
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">Project Priority Distribution</h5>
-                                <canvas id="projectPriorityChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Recent Activity -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">Recent Activity</h5>
-                                <div class="table-responsive">
-                                    <table class="table">
-                                        <thead>
-                                            <tr>
-                                                <th>Date</th>
-                                                <th>Type</th>
-                                                <th>Description</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($recent_activity as $activity): ?>
-                                                <tr>
-                                                    <td><?php echo date('Y-m-d', strtotime($activity['created_at'])); ?></td>
-                                                    <td><?php echo htmlspecialchars($activity['type']); ?></td>
-                                                    <td><?php echo htmlspecialchars($activity['description']); ?></td>
-                                                    <td>
-                                                        <span class="badge bg-<?php 
-                                                            echo ($activity['status'] == 'Completed') ? 'success' : 
-                                                                (($activity['status'] == 'In Progress') ? 'warning' : 'info'); 
-                                                        ?>"><?php echo htmlspecialchars($activity['status']); ?></span>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
+                                <h5 class="card-title">Tasks Completed Per Week</h5>
+                                <div class="chart-container">
+                                    <canvas id="tasksPerWeekChart"></canvas>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Tasks by Status</h5>
+                                <div class="chart-container">
+                                    <canvas id="tasksByStatusChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Tasks by Priority</h5>
+                                <div class="chart-container">
+                                    <canvas id="tasksByPriorityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Project Progress</h5>
+                                <div class="chart-container">
+                                    <canvas id="projectProgressChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Most Used Tags</h5>
+                                <div class="chart-container">
+                                    <canvas id="tagsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Most Active Tasks</h5>
+                                <div class="chart-container">
+                                    <canvas id="activeTasksChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-transparent border-0 pb-0 d-flex align-items-center">
+                                <i class="fas fa-hourglass-half text-warning me-2"></i>
+                                <span class="fw-semibold">Upcoming Deadlines</span>
+                            </div>
+                            <div class="card-body pt-2">
+                                <?php if (empty($upcomingDeadlines)): ?>
+                                    <div class="alert alert-info mb-0">No upcoming deadlines.</div>
+                                <?php else: ?>
+                                <ul class="list-group list-group-flush">
+                                <?php foreach ($upcomingDeadlines as $task): ?>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
+                                        <span><i class="fas fa-tasks text-primary me-2"></i><?= htmlspecialchars($task['title']) ?></span>
+                                        <span class="badge bg-warning text-dark rounded-pill"><i class="far fa-calendar-alt me-1"></i><?= htmlspecialchars($task['due_date']) ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                                </ul>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-transparent border-0 pb-0 d-flex align-items-center">
+                                <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                                <span class="fw-semibold">Overdue Tasks</span>
+                            </div>
+                            <div class="card-body pt-2">
+                                <?php if (empty($overdueTasks)): ?>
+                                    <div class="alert alert-success mb-0">No overdue tasks. Great job!</div>
+                                <?php else: ?>
+                                <ul class="list-group list-group-flush">
+                                <?php foreach ($overdueTasks as $task): ?>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
+                                        <span><i class="fas fa-tasks text-primary me-2"></i><?= htmlspecialchars($task['title']) ?></span>
+                                        <span class="badge bg-danger rounded-pill"><i class="far fa-calendar-alt me-1"></i><?= htmlspecialchars($task['due_date']) ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                                </ul>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -317,231 +201,84 @@ $project_tasks = $project_task_counts->fetchAll();
             </div>
         </div>
     </div>
-
-    <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- GSAP for smooth animations -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize GSAP animations
-        gsap.from('.card', {
-            duration: 0.5,
-            y: 20,
-            opacity: 0,
-            stagger: 0.1,
-            ease: 'power2.out'
-        });
+    // Chart Data from PHP
+    const tasksPerWeekLabels = <?= json_encode(chartLabels($tasksPerWeek, 'yearweek')) ?>;
+    const tasksPerWeekData = <?= json_encode(chartData($tasksPerWeek, 'completed_count')) ?>;
+    const tasksByStatusLabels = <?= json_encode(chartLabels($tasksByStatus, 'status')) ?>;
+    const tasksByStatusData = <?= json_encode(chartData($tasksByStatus, 'count')) ?>;
+    const tasksByPriorityLabels = <?= json_encode(chartLabels($tasksByPriority, 'priority')) ?>;
+    const tasksByPriorityData = <?= json_encode(chartData($tasksByPriority, 'count')) ?>;
+    const projectNames = <?= json_encode(chartLabels($projectProgress, 'name')) ?>;
+    const projectProgressData = <?= json_encode(array_map(function($row) {
+        return $row['total_tasks'] > 0 ? round($row['completed_tasks'] / $row['total_tasks'] * 100, 1) : 0;
+    }, $projectProgress)) ?>;
+    const tagsLabels = <?= json_encode(chartLabels($mostUsedTags, 'name')) ?>;
+    const tagsData = <?= json_encode(chartData($mostUsedTags, 'usage_count')) ?>;
+    const activeTasksLabels = <?= json_encode(chartLabels($mostActiveTasks, 'title')) ?>;
+    const activeTasksData = <?= json_encode(chartData($mostActiveTasks, 'comment_count')) ?>;
 
-        // Task Status Chart
-        const taskStatusCtx = document.getElementById('taskStatusChart').getContext('2d');
-        new Chart(taskStatusCtx, {
-            type: 'doughnut',
+    // Chart.js Theme (auto-detect dark mode)
+    function getChartTheme() {
+        return document.documentElement.classList.contains('light-mode') ? 'light' : 'dark';
+    }
+    function getTextColor() {
+        return getChartTheme() === 'dark' ? '#fff' : '#222';
+    }
+    function getGridColor() {
+        return getChartTheme() === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)';
+    }
+    // Chart.js Configs
+    function makeChart(id, type, labels, data, label, colors) {
+        const ctx = document.getElementById(id).getContext('2d');
+        return new Chart(ctx, {
+            type: type,
             data: {
-                labels: ['To Do', 'In Progress', 'Completed'],
+                labels: labels,
                 datasets: [{
-                    data: [
-                        <?php echo $task_statistics['todo_tasks']; ?>,
-                        <?php echo $task_statistics['in_progress_tasks']; ?>,
-                        <?php echo $task_statistics['completed_tasks']; ?>
-                    ],
-                    backgroundColor: [
-                        'rgba(54, 162, 235, 0.8)',
-                        'rgba(255, 206, 86, 0.8)',
-                        'rgba(75, 192, 192, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)'
-                    ],
-                    borderWidth: 1
+                    label: label,
+                    data: data,
+                    backgroundColor: colors,
+                    borderColor: colors,
+                    borderWidth: 1,
+                    fill: false
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#fff'
-                        }
-                    }
-                }
-            }
-        });
-
-        // Project Status Chart
-        const projectStatusCtx = document.getElementById('projectStatusChart').getContext('2d');
-        new Chart(projectStatusCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Planning', 'In Progress', 'Completed'],
-                datasets: [{
-                    data: [
-                        <?php echo $project_statistics['planning_projects']; ?>,
-                        <?php echo $project_statistics['in_progress_projects']; ?>,
-                        <?php echo $project_statistics['completed_projects']; ?>
-                    ],
-                    backgroundColor: [
-                        'rgba(54, 162, 235, 0.8)',
-                        'rgba(255, 206, 86, 0.8)',
-                        'rgba(75, 192, 192, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#fff'
-                        }
-                    }
-                }
-            }
-        });
-
-        // Task Priority Chart
-        const taskPriorityCtx = document.getElementById('taskPriorityChart').getContext('2d');
-        new Chart(taskPriorityCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Low', 'Medium', 'High'],
-                datasets: [{
-                    label: 'Number of Tasks',
-                    data: [
-                        <?php echo $task_priority['Low']; ?>,
-                        <?php echo $task_priority['Medium']; ?>,
-                        <?php echo $task_priority['High']; ?>
-                    ],
-                    backgroundColor: [
-                        'rgba(108, 117, 125, 0.8)',
-                        'rgba(255, 193, 7, 0.8)',
-                        'rgba(220, 53, 69, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgba(108, 117, 125, 1)',
-                        'rgba(255, 193, 7, 1)',
-                        'rgba(220, 53, 69, 1)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
+                    legend: { labels: { color: getTextColor() } },
+                    title: { display: false }
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            color: '#fff'
-                        },
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            color: '#fff'
-                        },
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        }
-                    }
-                }
+                scales: type === 'bar' || type === 'line' ? {
+                    x: { ticks: { color: getTextColor() }, grid: { color: getGridColor() } },
+                    y: { ticks: { color: getTextColor() }, grid: { color: getGridColor() }, beginAtZero: true }
+                } : {}
             }
         });
-
-        // Project Priority Chart
-        const projectPriorityCtx = document.getElementById('projectPriorityChart').getContext('2d');
-        new Chart(projectPriorityCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Low', 'Medium', 'High'],
-                datasets: [{
-                    label: 'Number of Projects',
-                    data: [
-                        <?php echo $project_priority['Low']; ?>,
-                        <?php echo $project_priority['Medium']; ?>,
-                        <?php echo $project_priority['High']; ?>
-                    ],
-                    backgroundColor: [
-                        'rgba(108, 117, 125, 0.8)',
-                        'rgba(255, 193, 7, 0.8)',
-                        'rgba(220, 53, 69, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgba(108, 117, 125, 1)',
-                        'rgba(255, 193, 7, 1)',
-                        'rgba(220, 53, 69, 1)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            color: '#fff'
-                        },
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            color: '#fff'
-                        },
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        }
-                    }
-                }
-            }
-        });
-
-        // Add hover effects to cards
-        const cards = document.querySelectorAll('.card');
-        cards.forEach(card => {
-            card.addEventListener('mouseenter', () => {
-                gsap.to(card, {
-                    duration: 0.3,
-                    y: -5,
-                    boxShadow: '0 8px 15px rgba(0, 0, 0, 0.2)',
-                    ease: 'power2.out'
-                });
-            });
-            
-            card.addEventListener('mouseleave', () => {
-                gsap.to(card, {
-                    duration: 0.3,
-                    y: 0,
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                    ease: 'power2.out'
-                });
-            });
-        });
-    });
+    }
+    // Colors
+    const palette = [
+        '#6C63FF', '#FF6584', '#00D9F5', '#00C853', '#FFD600', '#FF1744', '#A0A0A0', '#5A52E0', '#FFB300', '#43A047'
+    ];
+    // Render Charts
+    let charts = [];
+    function renderCharts() {
+        charts.forEach(c => c.destroy());
+        charts = [];
+        charts.push(makeChart('tasksPerWeekChart', 'bar', tasksPerWeekLabels, tasksPerWeekData, 'Tasks Completed', palette));
+        charts.push(makeChart('tasksByStatusChart', 'doughnut', tasksByStatusLabels, tasksByStatusData, 'Status', palette));
+        charts.push(makeChart('tasksByPriorityChart', 'doughnut', tasksByPriorityLabels, tasksByPriorityData, 'Priority', palette));
+        charts.push(makeChart('projectProgressChart', 'bar', projectNames, projectProgressData, 'Progress (%)', palette));
+        charts.push(makeChart('tagsChart', 'bar', tagsLabels, tagsData, 'Tag Usage', palette));
+        charts.push(makeChart('activeTasksChart', 'bar', activeTasksLabels, activeTasksData, 'Comments', palette));
+    }
+    document.addEventListener('DOMContentLoaded', renderCharts);
+    // Re-render on theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) themeToggle.addEventListener('click', () => setTimeout(renderCharts, 300));
     </script>
 </body>
-</html>
+</html> 
