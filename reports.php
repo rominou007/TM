@@ -17,6 +17,7 @@ $projectProgress = getProjectProgress($pdo, $user_id);
 $upcomingDeadlines = getUpcomingDeadlines($pdo, $user_id);
 $mostUsedTags = getMostUsedTags($pdo, $user_id);
 $mostActiveTasks = getMostActiveTasks($pdo, $user_id);
+$burndownData = getBurndownData($pdo, $user_id);
 
 // Prepare data for charts
 function chartLabels($arr, $key) {
@@ -25,6 +26,8 @@ function chartLabels($arr, $key) {
 function chartData($arr, $key) {
     return array_map(fn($row) => (int)$row[$key], $arr);
 }
+$burndownLabels = chartLabels($burndownData, 'date');
+$burndownValues = chartData($burndownData, 'remaining');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -50,6 +53,26 @@ function chartData($arr, $key) {
                 <header class="mb-4">
                     <h1 class="mb-3">Analytics & Reports</h1>
                 </header>
+                <form class="mb-4" method="get" id="projectFilterForm">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-auto">
+                            <label for="projectFilter" class="col-form-label fw-semibold">Show Analytics For:</label>
+                        </div>
+                        <div class="col-auto">
+                            <select class="form-select" id="projectFilter" name="project_id" onchange="document.getElementById('projectFilterForm').submit()">
+                                <option value="">All Projects</option>
+                                <?php
+                                // Fetch all projects for the dropdown
+                                $allProjects = $pdo->query("SELECT project_id, name FROM projects WHERE user_id = " . (int)$user_id . " ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+                                foreach ($allProjects as $proj) {
+                                    $selected = (isset($_GET['project_id']) && $_GET['project_id'] == $proj['project_id']) ? 'selected' : '';
+                                    echo '<option value="' . htmlspecialchars($proj['project_id']) . '" ' . $selected . '>' . htmlspecialchars($proj['name']) . '</option>';
+                                }
+                                ?>
+                            </select>
+                        </div>
+                    </div>
+                </form>
                 <div class="row g-4 mb-4">
                     <div class="col-md-3">
                         <div class="card h-100 text-center">
@@ -198,6 +221,18 @@ function chartData($arr, $key) {
                         </div>
                     </div>
                 </div>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-12">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Burndown Chart (Open Tasks Over Time)</h5>
+                                <div class="chart-container">
+                                    <canvas id="burndownChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -219,6 +254,8 @@ function chartData($arr, $key) {
     const tagsData = <?= json_encode(chartData($mostUsedTags, 'usage_count')) ?>;
     const activeTasksLabels = <?= json_encode(chartLabels($mostActiveTasks, 'title')) ?>;
     const activeTasksData = <?= json_encode(chartData($mostActiveTasks, 'comment_count')) ?>;
+    const burndownLabels = <?= json_encode($burndownLabels) ?>;
+    const burndownValues = <?= json_encode($burndownValues) ?>;
 
     // Chart.js Theme (auto-detect dark mode)
     function getChartTheme() {
@@ -274,6 +311,7 @@ function chartData($arr, $key) {
         charts.push(makeChart('projectProgressChart', 'bar', projectNames, projectProgressData, 'Progress (%)', palette));
         charts.push(makeChart('tagsChart', 'bar', tagsLabels, tagsData, 'Tag Usage', palette));
         charts.push(makeChart('activeTasksChart', 'bar', activeTasksLabels, activeTasksData, 'Comments', palette));
+        charts.push(makeChart('burndownChart', 'line', burndownLabels, burndownValues, 'Open Tasks', palette));
     }
     document.addEventListener('DOMContentLoaded', renderCharts);
     // Re-render on theme toggle
@@ -281,4 +319,4 @@ function chartData($arr, $key) {
     if (themeToggle) themeToggle.addEventListener('click', () => setTimeout(renderCharts, 300));
     </script>
 </body>
-</html> 
+</html>

@@ -23,6 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $status = $_POST['status'] ?? 'Planning';
+    $priority = $_POST['priority'] ?? 'Medium';
+    $due_date = $_POST['due_date'] ?? null;
     
     // Validate data
     if (empty($name)) {
@@ -33,23 +35,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     try {
         // Insert the project
-        if ($status === 'Completed') {
-            $stmt = $pdo->prepare("INSERT INTO projects (user_id, name, description, status, completed_at) VALUES (?, ?, ?, ?, NOW())");
-            $result = $stmt->execute([
-                $_SESSION['user_id'],
-                $name,
-                $description,
-                $status
-            ]);
-        } else {
-            $stmt = $pdo->prepare("INSERT INTO projects (user_id, name, description, status, completed_at) VALUES (?, ?, ?, ?, NULL)");
-            $result = $stmt->execute([
-                $_SESSION['user_id'],
-                $name,
-                $description,
-                $status
-            ]);
-        }
+        $stmt = $pdo->prepare("INSERT INTO projects (user_id, name, description, status, priority, due_date) VALUES (?, ?, ?, ?, ?, ?)");
+        $result = $stmt->execute([
+            $_SESSION['user_id'],
+            $name,
+            $description,
+            $status,
+            $priority,
+            $due_date
+        ]);
         
         if ($result) {
             $project_id = $pdo->lastInsertId();

@@ -22,12 +22,12 @@ $stmt = $pdo->prepare("
     SELECT t.*, p.name AS project_name, p.project_id 
     FROM tasks t
     JOIN projects p ON t.project_id = p.project_id
-    WHERE t.task_id = ? AND p.user_id = ?
+    WHERE t.task_id = ?
 ");
-$stmt->execute([$task_id, $_SESSION['user_id']]);
+$stmt->execute([$task_id]);
 $task = $stmt->fetch();
 
-// If task doesn't exist or doesn't belong to the user
+// If task doesn't exist
 if (!$task) {
     $_SESSION['error'] = "Task not found";
     header('Location: projects.php');

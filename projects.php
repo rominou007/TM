@@ -312,9 +312,14 @@ $tasks = $stmt->fetchAll();
         gsap.from('.project-card', {
             duration: 0.5,
             y: 20,
-            opacity: 0,
-            stagger: 0.1,
+            opacity: 1,
             ease: 'power2.out'
+        });
+
+        // Remove any default opacity/greying out on project cards after animation
+        document.querySelectorAll('.project-card').forEach(card => {
+            card.style.opacity = '1';
+            card.style.filter = 'none';
         });
 
         // Project filter functionality with smooth transitions
@@ -331,23 +336,28 @@ $tasks = $stmt->fetchAll();
                 const filter = this.getAttribute('data-filter');
                 const projects = document.querySelectorAll('.project-card');
                 
-                // Animate projects with GSAP
                 projects.forEach(project => {
                     if (filter === 'all' || project.getAttribute('data-status') === filter) {
+                        project.style.display = ''; // Restore Bootstrap's default (usually flex)
                         gsap.to(project, {
                             duration: 0.3,
                             opacity: 1,
                             scale: 1,
-                            display: 'block',
-                            ease: 'power2.out'
+                            ease: 'power2.out',
+                            onComplete: () => {
+                                project.style.pointerEvents = '';
+                            }
                         });
                     } else {
                         gsap.to(project, {
                             duration: 0.3,
-                            opacity: 0,
-                            scale: 0.95,
-                            display: 'none',
-                            ease: 'power2.in'
+                            opacity: 1,
+                            scale: 1,
+                            ease: 'power2.in',
+                            onComplete: () => {
+                                project.style.display = 'none';
+                                project.style.pointerEvents = 'none';
+                            }
                         });
                     }
                 });

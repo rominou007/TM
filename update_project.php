@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $status = $_POST['status'] ?? 'Planning';
+    $priority = $_POST['priority'] ?? 'Medium';
     
     // Validate input
     if (empty($project_id) || !is_numeric($project_id)) {
@@ -63,14 +64,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         if ($setCompletedAt) {
-            $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ?, completed_at = NOW(), updated_at = CURRENT_TIMESTAMP WHERE project_id = ?");
-            $result = $stmt->execute([$name, $description, $status, $project_id]);
+            $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ?, priority = ?, completed_at = NOW(), updated_at = CURRENT_TIMESTAMP WHERE project_id = ? AND user_id = ?");
+            $result = $stmt->execute([$name, $description, $status, $priority, $project_id, $_SESSION['user_id']]);
         } elseif ($clearCompletedAt) {
-            $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ?, completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE project_id = ?");
-            $result = $stmt->execute([$name, $description, $status, $project_id]);
+            $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ?, priority = ?, completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE project_id = ? AND user_id = ?");
+            $result = $stmt->execute([$name, $description, $status, $priority, $project_id, $_SESSION['user_id']]);
         } else {
-            $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE project_id = ?");
-            $result = $stmt->execute([$name, $description, $status, $project_id]);
+            $stmt = $pdo->prepare("UPDATE projects SET name = ?, description = ?, status = ?, priority = ?, updated_at = CURRENT_TIMESTAMP WHERE project_id = ? AND user_id = ?");
+            $result = $stmt->execute([$name, $description, $status, $priority, $project_id, $_SESSION['user_id']]);
         }
         
         if ($result) {
