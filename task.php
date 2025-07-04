@@ -224,6 +224,49 @@ unset($_SESSION['success'], $_SESSION['error']);
                         </div>
                     </div>
                 </div>
+                
+                <!-- File Attachments Section -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="bi bi-paperclip me-2"></i>
+                        <h5 class="mb-0">Attachments</h5>
+                    </div>
+                    <div class="card-body">
+                        <form action="upload_task_file.php" method="post" enctype="multipart/form-data" class="mb-3">
+                            <input type="hidden" name="task_id" value="<?php echo $task_id; ?>">
+                            <div class="mb-2">
+                                <label for="taskFile" class="form-label">Attach File</label>
+                                <div>
+                                    <input type="file" id="taskFile" name="task_file" class="d-none" onchange="document.getElementById('fileLabel').innerText = this.files[0]?.name || 'Choose file...'">
+                                    <label for="taskFile" class="btn btn-outline-secondary">
+                                        <i class="bi bi-paperclip"></i> <span id="fileLabel">Choose file...</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary btn-sm"><i class="bi bi-upload"></i> Upload</button>
+                        </form>
+                        <?php
+                        // List existing files
+                        $stmt = $pdo->prepare("SELECT * FROM task_files WHERE task_id = ?");
+                        $stmt->execute([$task_id]);
+                        $files = $stmt->fetchAll();
+                        if ($files):
+                        ?>
+                            <ul class="list-group list-group-flush">
+                                <?php foreach ($files as $file): ?>
+                                    <li class="list-group-item bg-transparent">
+                                        <a href="<?php echo htmlspecialchars($file['file_path']); ?>" target="_blank">
+                                            <i class="bi bi-file-earmark"></i> <?php echo htmlspecialchars($file['file_name']); ?>
+                                        </a>
+                                        <span class="text-muted small ms-2">(uploaded <?php echo date('Y-m-d H:i', strtotime($file['uploaded_at'])); ?>)</span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else: ?>
+                            <div class="text-muted">No files attached.</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
