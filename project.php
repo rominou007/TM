@@ -163,12 +163,24 @@ unset($_SESSION['success'], $_SESSION['error']);
                                         <!-- Quick status change buttons -->
                                         <div class="mt-2">
                                             <div class="btn-group btn-group-sm" role="group">
-                                                <a href="update_task_status.php?id=<?php echo $task['task_id']; ?>&status=To Do" 
-                                                   class="btn btn-outline-info <?php echo $task['status'] == 'To Do' ? 'active' : ''; ?>">To Do</a>
-                                                <a href="update_task_status.php?id=<?php echo $task['task_id']; ?>&status=In Progress" 
-                                                   class="btn btn-outline-warning <?php echo $task['status'] == 'In Progress' ? 'active' : ''; ?>">In Progress</a>
-                                                <a href="update_task_status.php?id=<?php echo $task['task_id']; ?>&status=Completed" 
-                                                   class="btn btn-outline-success <?php echo $task['status'] == 'Completed' ? 'active' : ''; ?>">Completed</a>
+                                                <form action="update_task_status.php" method="post" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
+                                                    <input type="hidden" name="id" value="<?php echo $task['task_id']; ?>">
+                                                    <input type="hidden" name="status" value="To Do">
+                                                    <button type="submit" class="btn btn-outline-info <?php echo $task['status'] == 'To Do' ? 'active' : ''; ?>">To Do</button>
+                                                </form>
+                                                <form action="update_task_status.php" method="post" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
+                                                    <input type="hidden" name="id" value="<?php echo $task['task_id']; ?>">
+                                                    <input type="hidden" name="status" value="In Progress">
+                                                    <button type="submit" class="btn btn-outline-warning <?php echo $task['status'] == 'In Progress' ? 'active' : ''; ?>">In Progress</button>
+                                                </form>
+                                                <form action="update_task_status.php" method="post" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
+                                                    <input type="hidden" name="id" value="<?php echo $task['task_id']; ?>">
+                                                    <input type="hidden" name="status" value="Completed">
+                                                    <button type="submit" class="btn btn-outline-success <?php echo $task['status'] == 'Completed' ? 'active' : ''; ?>">Completed</button>
+                                                </form>
                                             </div>
                                         </div>
                                     </div>
