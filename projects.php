@@ -410,7 +410,11 @@ $tasks = $stmt->fetchAll();
                 
                 // Update the modal's content
                 document.getElementById('deleteProjectName').textContent = projectName;
-                document.getElementById('confirmDeleteBtn').href = 'delete_project.php?id=' + projectId;
+                let href = 'delete_project.php?id=' + projectId;
+                if (window.CSRF_TOKEN) {
+                    href += '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN);
+                }
+                document.getElementById('confirmDeleteBtn').href = href;
             });
         }
 
