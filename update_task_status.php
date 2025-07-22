@@ -1,6 +1,9 @@
 <?php
 session_start();
+require_once 'functions.php';
 require_once 'config/db_connect.php';
+
+require_login();
 
 // Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
@@ -8,15 +11,29 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+// Ensure POST request and validate CSRF token
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $_SESSION['error'] = "Invalid request method";
+    header('Location: projects.php');
+    exit;
+}
+
+if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+    $_SESSION['error'] = 'Invalid CSRF token.';
+    log_error('CSRF token mismatch on update_task_status');
+    header('Location: projects.php');
+    exit;
+}
+
 // Check if required parameters are provided
-if (!isset($_GET['id']) || !is_numeric($_GET['id']) || !isset($_GET['status'])) {
+if (!isset($_POST['id']) || !is_numeric($_POST['id']) || !isset($_POST['status'])) {
     $_SESSION['error'] = "Invalid request";
     header('Location: projects.php');
     exit;
 }
 
-$task_id = $_GET['id'];
-$status = $_GET['status'];
+$task_id = $_POST['id'];
+$status = $_POST['status'];
 
 // Validate status
 $valid_statuses = ['To Do', 'In Progress', 'Completed'];

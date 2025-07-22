@@ -200,19 +200,34 @@ unset($_SESSION['success'], $_SESSION['error']);
                                 <div class="card-body">
                                     <div class="d-grid gap-2">
                                         <?php if ($task['status'] != 'In Progress'): ?>
-                                            <a href="update_task_status.php?id=<?php echo $task_id; ?>&status=In Progress" class="btn btn-warning">
-                                                <i class="bi bi-play-fill"></i> Mark In Progress
-                                            </a>
+                                            <form action="update_task_status.php" method="post" class="d-grid">
+                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
+                                                <input type="hidden" name="id" value="<?php echo $task_id; ?>">
+                                                <input type="hidden" name="status" value="In Progress">
+                                                <button type="submit" class="btn btn-warning">
+                                                    <i class="bi bi-play-fill"></i> Mark In Progress
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
-                                        
+
                                         <?php if ($task['status'] != 'Completed'): ?>
-                                            <a href="update_task_status.php?id=<?php echo $task_id; ?>&status=Completed" class="btn btn-success">
-                                                <i class="bi bi-check-lg"></i> Mark Completed
-                                            </a>
+                                            <form action="update_task_status.php" method="post" class="d-grid">
+                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
+                                                <input type="hidden" name="id" value="<?php echo $task_id; ?>">
+                                                <input type="hidden" name="status" value="Completed">
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="bi bi-check-lg"></i> Mark Completed
+                                                </button>
+                                            </form>
                                         <?php else: ?>
-                                            <a href="update_task_status.php?id=<?php echo $task_id; ?>&status=To Do" class="btn btn-info">
-                                                <i class="bi bi-arrow-repeat"></i> Reopen Task
-                                            </a>
+                                            <form action="update_task_status.php" method="post" class="d-grid">
+                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
+                                                <input type="hidden" name="id" value="<?php echo $task_id; ?>">
+                                                <input type="hidden" name="status" value="To Do">
+                                                <button type="submit" class="btn btn-info">
+                                                    <i class="bi bi-arrow-repeat"></i> Reopen Task
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
                                         
                                         <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteTaskModal">
@@ -348,6 +363,9 @@ unset($_SESSION['success'], $_SESSION['error']);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- GSAP for smooth animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script>
+        window.CSRF_TOKEN = "<?php echo htmlspecialchars(generate_csrf_token()); ?>";
+    </script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Animate task card on load
